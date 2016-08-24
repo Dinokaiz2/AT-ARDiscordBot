@@ -159,6 +159,7 @@ def main():
 
         try:
             from atar import ATAR
+            from atar import token
             
             a = ATAR()
             print("Connecting...", end='', flush=True)
