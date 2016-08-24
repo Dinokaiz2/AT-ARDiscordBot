@@ -1,20 +1,201 @@
 import discord
+import inspect
 
 class ATAR(discord.Client):
     def __init__(self):
         super.__init__()
 
+    async def on_message(self, message):
+        await self.wait_until_ready()
 
-    async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
+        messageContent = message.content.strip()
+        if not messageContent.startswith(self.config.commandPrefix):
+            return
+
+        if message.author == self.user:
+            self.safePrint("Received command from self, ignoring. (%s)" % message.content)
+            return
+
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
+            return  # if I want to log this I just move it under the prefix check
+
+        command, *args = message_content.split()  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
+        command = command[len(self.config.command_prefix):].lower().strip()
+
+        handler = getattr(self, 'cmd_%s' % command, None)
+        if not handler:
+            return
+
+        if message.channel.is_private:
+            if not (message.author.id == self.config.owner_id and command == 'joinserver'):
+                await self.send_message(message.channel, "You can't access that command in PMs.")
+                return
+
+        if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
+            self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, messageContent))
+            return
+
+        else:
+            self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, messageContent))
+
+        userPermissions = self.permissions.for_user(message.author)
+
+        argspec = inspect.signature(handler)
+        params = argspec.parameters.copy()
+
+        # noinspection PyBroadException
+        try:
+            if user_permissions.ignore_non_voice and command in userPermissions.ignore_non_voice:
+                await self._check_ignore_non_voice(message)
+
+            handler_kwargs = {}
+            if params.pop('message', None):
+                handler_kwargs['message'] = message
+
+            if params.pop('channel', None):
+                handler_kwargs['channel'] = message.channel
+
+            if params.pop('author', None):
+                handler_kwargs['author'] = message.author
+
+            if params.pop('server', None):
+                handler_kwargs['server'] = message.server
+
+            if params.pop('player', None):
+                handler_kwargs['player'] = await self.get_player(message.channel)
+
+            if params.pop('permissions', None):
+                handler_kwargs['permissions'] = user_permissions
+
+            if params.pop('user_mentions', None):
+                handler_kwargs['user_mentions'] = list(map(message.server.get_member, message.raw_mentions))
+
+            if params.pop('channel_mentions', None):
+                handler_kwargs['channel_mentions'] = list(map(message.server.get_channel, message.raw_channel_mentions))
+
+            if params.pop('voice_channel', None):
+                handler_kwargs['voice_channel'] = message.server.me.voice_channel
+
+            if params.pop('leftover_args', None):
+                handler_kwargs['leftover_args'] = args
+
+            args_expected = []
+            for key, param in list(params.items()):
+                doc_key = '[%s=%s]' % (key, param.default) if param.default is not inspect.Parameter.empty else key
+                args_expected.append(doc_key)
+
+                if not args and param.default is not inspect.Parameter.empty:
+                    params.pop(key)
+                    continue
+
+                if args:
+                    arg_value = args.pop(0)
+                    handler_kwargs[key] = arg_value
+                    params.pop(key)
+
+            if message.author.id != self.config.owner_id:
+                if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
+                    raise exceptions.PermissionsError(
+                        "oh.....that command is not enabled for your group (%s)......sorry..." % user_permissions.name,
+                        expire_in=20)
+
+                elif user_permissions.command_blacklist and command in user_permissions.command_blacklist:
+                    raise exceptions.PermissionsError(
+                        "oh....that command is disabled for your group (%s).....sorry......." % user_permissions.name,
+                        expire_in=20)
+
+            if params:
+                docs = getattr(handler, '__doc__', None)
+                if not docs:
+                    docs = 'oh....you use that like this....: {}{} {}'.format(
+                        self.config.command_prefix,
+                        command,
+                        ' '.join(args_expected)
+                    )
+
+                docs = '\n'.join(l.strip() for l in docs.split('\n'))
+                await self.safe_send_message(
+                    message.channel,
+                    '```\n%s\n```' % docs.format(command_prefix=self.config.command_prefix),
+                    expire_in=60
+                )
+                return
+
+            response = await handler(**handler_kwargs)
+            if response and isinstance(response, Response):
+                content = response.content
+                if response.reply:
+                    content = '%s, %s' % (message.author.mention, content)
+
+                sentmsg = await self.safe_send_message(
+                    message.channel, content,
+                    expire_in=response.delete_after if self.config.delete_messages else 0,
+                    also_delete=message if self.config.delete_invoking else None
+                )
+
+        except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError) as e:
+            print("{0.__class__}: {0.message}".format(e))
+
+            expirein = e.expire_in if self.config.delete_messages else None
+            alsodelete = message if self.config.delete_invoking else None
+
+            await self.safe_send_message(
+                message.channel,
+                '```\n%s\n```' % e.message,
+                expire_in=expirein,
+                also_delete=alsodelete
+            )
+
+        except exceptions.Signal:
+            raise
+
+        except Exception:
+            traceback.print_exc()
+            if self.config.debug_mode:
+                await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
+
+    async def cmd_help(self, command=None):
+        """
+        Usage:
+            {command_prefix}help [command]
+
+        Prints a help message.
+        If a command is specified, it prints a help message for that command.
+        Otherwise, it lists the available commands.
+        """
+
+        if command:
+            cmd = getattr(self, 'cmd_' + command, None)
+            if cmd:
+                return Response(
+                    "```\n{}```".format(
+                        dedent(cmd.__doc__),
+                        command_prefix=self.config.command_prefix
+                    ),
+                    delete_after=60
+                )
+            else:
+                return Response("No command under that name.", delete_after=10)
+
+        else:
+            helpmsg = "Commands:\n```"
+            commands = []
+
+            for att in dir(self):
+                if att.startswith('cmd_') and att != 'cmd_help':
+                    command_name = att.replace('cmd_', '').lower()
+                    commands.append("{}{}".format(self.config.command_prefix, command_name))
+
+            helpmsg += ", ".join(commands)
+            helpmsg += "```"
+            helpmsg += "https://github.com/Dinokaiz2/AT-ARDiscordBot/wiki/Commands"
+
+            return Response(helpmsg, reply=True, delete_after=60)
+    
+    async def safeSendMessage(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
         msg = None
         try:
             msg = await self.send_message(dest, content, tts=tts)
-
-            if msg and expire_in:
-                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
-
-            if also_delete and isinstance(also_delete, discord.Message):
-                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
 
         except discord.Forbidden:
             if not quiet:
@@ -25,3 +206,22 @@ class ATAR(discord.Client):
                 self.safe_print("Unable to send message to %s" % dest.name)
 
         return msg
+
+    def safePrint(self, content, *, end='\n', flush=True):
+        sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
+        if flush: sys.stdout.flush()
+
+    async def sendTyping(self, destination):
+        try:
+            return await super().send_typing(destination)
+        except discord.Forbidden:
+            if self.config.debug_mode:
+                print("Could not send typing to %s, no permission" % destination)
+
+
+class Response:
+    def __init__(self, content, reply=False, delete_after=0):
+        self.content = content
+        self.reply = reply
+        self.delete_after = delete_after
+        
