@@ -20,7 +20,7 @@ class PermissionsError(CommandError):
     def message(self):
         return "You don't have permission to use that command: " + self.message
 
-class HelpfulError(MusicbotException):
+class HelpfulError(ATARException):
     def __init__(self, issue, solution, *, preface="Encountered an error:\n", expire_in=0):
         self.issue = issue
         self.solution = solution

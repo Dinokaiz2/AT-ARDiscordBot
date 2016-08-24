@@ -1,9 +1,12 @@
 import discord
 import inspect
 
+from atar.config import Config, ConfigDefaults
+
 class ATAR(discord.Client):
-    def __init__(self):
+    def __init__(self, configFile=ConfigDefaults.options_file):
         super().__init__()
+        self.config = Config(configFile)
 
     async def on_message(self, message):
         await self.wait_until_ready()

@@ -159,11 +159,10 @@ def main():
 
         try:
             from atar import ATAR
-            from atar import token
             
             a = ATAR()
             print("Connecting...", end='', flush=True)
-            a.run(token)
+            a.run()
 
         except SyntaxError:
             traceback.print_exc()

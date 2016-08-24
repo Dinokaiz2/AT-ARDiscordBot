@@ -94,7 +94,6 @@ class Config:
             if not self._password:
                 raise HelpfulError(
                     "The password was not specified in the config.",
-
                     "Please put your bot account credentials in the config.",
                     preface=confpreface)
 
