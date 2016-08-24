@@ -18,4 +18,4 @@ class CommandError(ATARException):
 class PermissionsError(CommandError):
     @property
     def message(self):
-        return "You don't have permission to use that command: " + self._message
+        return "You don't have permission to use that command: " + self.message
