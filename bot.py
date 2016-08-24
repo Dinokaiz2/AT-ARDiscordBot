@@ -60,24 +60,18 @@ class ATAR(discord.Client):
 
             if params.pop('server', None):
                 handler_kwargs['server'] = message.server
-
-            if params.pop('player', None):
-                handler_kwargs['player'] = await self.get_player(message.channel)
-
+            
             if params.pop('permissions', None):
                 handler_kwargs['permissions'] = user_permissions
 
-            if params.pop('user_mentions', None):
-                handler_kwargs['user_mentions'] = list(map(message.server.get_member, message.raw_mentions))
+            if params.pop('userMentions', None):
+                handler_kwargs['userMentions'] = list(map(message.server.get_member, message.raw_mentions))
 
-            if params.pop('channel_mentions', None):
-                handler_kwargs['channel_mentions'] = list(map(message.server.get_channel, message.raw_channel_mentions))
+            if params.pop('channelMentions', None):
+                handler_kwargs['channelMentions'] = list(map(message.server.get_channel, message.raw_channel_mentions))
 
-            if params.pop('voice_channel', None):
-                handler_kwargs['voice_channel'] = message.server.me.voice_channel
-
-            if params.pop('leftover_args', None):
-                handler_kwargs['leftover_args'] = args
+            if params.pop('leftoverArgs', None):
+                handler_kwargs['leftoverArgs'] = args
 
             args_expected = []
             for key, param in list(params.items()):
@@ -89,25 +83,23 @@ class ATAR(discord.Client):
                     continue
 
                 if args:
-                    arg_value = args.pop(0)
-                    handler_kwargs[key] = arg_value
+                    argValue = args.pop(0)
+                    handler_kwargs[key] = argValue
                     params.pop(key)
 
             if message.author.id != self.config.owner_id:
                 if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
                     raise exceptions.PermissionsError(
-                        "oh.....that command is not enabled for your group (%s)......sorry..." % user_permissions.name,
-                        expire_in=20)
+                        "That command is not enabled for your group (%s)" % user_permissions.name)
 
                 elif user_permissions.command_blacklist and command in user_permissions.command_blacklist:
                     raise exceptions.PermissionsError(
-                        "oh....that command is disabled for your group (%s).....sorry......." % user_permissions.name,
-                        expire_in=20)
+                        "That command is disabled for your group (%s)" % user_permissions.name)
 
             if params:
                 docs = getattr(handler, '__doc__', None)
                 if not docs:
-                    docs = 'oh....you use that like this....: {}{} {}'.format(
+                    docs = 'Usage: {}{} {}'.format(
                         self.config.command_prefix,
                         command,
                         ' '.join(args_expected)
@@ -116,7 +108,7 @@ class ATAR(discord.Client):
                 docs = '\n'.join(l.strip() for l in docs.split('\n'))
                 await self.safe_send_message(
                     message.channel,
-                    '```\n%s\n```' % docs.format(command_prefix=self.config.command_prefix),
+                    '```\n%s\n```' % docs.format(commandPrefix=self.config.commandPrefix),
                     expire_in=60
                 )
                 return
@@ -128,9 +120,7 @@ class ATAR(discord.Client):
                     content = '%s, %s' % (message.author.mention, content)
 
                 sentmsg = await self.safe_send_message(
-                    message.channel, content,
-                    expire_in=response.delete_after if self.config.delete_messages else 0,
-                    also_delete=message if self.config.delete_invoking else None
+                    message.channel, content
                 )
 
         except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError) as e:
