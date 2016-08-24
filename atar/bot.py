@@ -3,7 +3,7 @@ import inspect
 
 class ATAR(discord.Client):
     def __init__(self):
-        super.__init__()
+        super().__init__()
 
     async def on_message(self, message):
         await self.wait_until_ready()

@@ -21,7 +21,7 @@ class PIP(object):
     @classmethod
     def run(cls, command, check_output=False):
         if not cls.works():
-            raise RuntimeError("oh........... i couldn't import pip. sorry.")
+            raise RuntimeError("Couldn't run pip.")
 
         try:
             return PIP.run_python_m(*command.split(), check_output=check_output)
@@ -29,11 +29,11 @@ class PIP(object):
             return e.returncode
         except:
             traceback.print_exc()
-            print("oh......... i wasn't able to use a -m method")
+            print("Couldn't use a -m method.")
 
     @classmethod
     def run_python_m(cls, *args, **kwargs):
-        check_output = kwargs.pop('check_output', False)
+        checkOutput = kwargs.pop('checkOutput', False)
         check = subprocess.check_output if check_output else subprocess.check_call
         return check([sys.executable, '-m', 'pip'] + list(args))
 
@@ -104,8 +104,8 @@ class PIP(object):
 
 def main():
     if not sys.version_info >= (3, 5):
-        print("ohh....... you need python 3.5+. yours is %s. sorry." % sys.version.split()[0])
-        print("looking for python 3.5.........")
+        print("Python 3.5+ is required. Your version is %s." % sys.version.split()[0])
+        print("Searching for Python 3.5")
 
         pycom = None
 
@@ -135,13 +135,13 @@ def main():
                 pass
 
             if pycom:
-                print("\nohhhhh..... good... i found python 3.  ill restart using: ")
+                print("\nPython 3 found, restarting using: ")
                 print("  %s run.py\n" % pycom)
 
                 os.execlp(pycom, pycom, 'run.py')
 
-        print("start me up using python 3.5 next time......... or dont........ its up to you.....")
-        input("press enter to keep going...... if you want........")
+        print("Error: Use Python 3.5.")
+        input("Press enter to continue.")
 
         return
 
@@ -159,10 +159,10 @@ def main():
 
         try:
             from atar import ATAR
-
-            m = ATAR()
-            print("connecting..............", end='', flush=True)
-            m.run()
+            
+            a = ATAR()
+            print("Connecting...", end='', flush=True)
+            a.run()
 
         except SyntaxError:
             traceback.print_exc()
@@ -174,23 +174,23 @@ def main():
 
                 # TODO: Better output
                 print(e)
-                print("trying to install dependencies...............")
+                print("Attempting to install dependencies...")
 
                 err = PIP.run_install('--upgrade -r requirements.txt')
 
                 if err:
-                    print("\nohhh...... you might need to %s to install dependencies........... sorry....." %
-                          ['use sudo', 'run as admin'][sys.platform.startswith('win')])
+                    print("\nError: Try %s" %
+                          ['using sudo', 'running as admin'][sys.platform.startswith('win')])
                     break
                 else:
-                    print("\n........ok...... lets hope it worked\n")
+                    print("\nWorking...\n")
             else:
                 traceback.print_exc()
-                print("......oh no.... i encountered an ImportError....... ill exit now.")
+                print("Encountered ImportError, exiting...")
                 break
 
         except Exception as e:
-            if hasattr(e, '__module__') and e.__module__ == 'musicbot.exceptions':
+            if hasattr(e, '__module__') and e.__module__ == 'atar.exceptions':
                 if e.__class__.__name__ == 'HelpfulError':
                     print(e.message)
                     break
@@ -207,13 +207,13 @@ def main():
             asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
-        print("cleaning up............... ", end='')
+        print("Cleaning up...\n", end='')
         gc.collect()
-        print("oh good.......... i finished...........")
+        print("Done cleaning.")
 
         sleeptime = min(loops * 2, max_wait_time)
         if sleeptime:
-            print("ill restart in {} seconds...........".format(loops*2))
+            print("Restarting in {} seconds.".format(loops*2))
             time.sleep(sleeptime)
 
 
