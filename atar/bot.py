@@ -181,6 +181,26 @@ class ATAR(discord.Client):
             helpmsg += "https://github.com/Dinokaiz2/AT-ARDiscordBot/wiki/Commands"
 
             return Response(helpmsg, reply=True, delete_after=60)
+
+    def run(self):
+        try:
+            self.loop.run_until_complete(self.start(*self.config.auth))
+
+        except discord.errors.LoginFailure:
+            raise exceptions.HelpfulError(
+                "Can't log in, bad credentials.",
+                "Fix email/pass or token in the options file."
+                "Each field should be on its own line.")
+
+        finally:
+            try:
+                self._cleanup()
+            except Exception as e:
+                print("Encountered error while cleaning:", e)
+
+            self.loop.close()
+            if self.exit_signal:
+                raise self.exit_signal
     
     async def safeSendMessage(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
         msg = None

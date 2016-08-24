@@ -163,7 +163,7 @@ def main():
             
             a = ATAR()
             print("Connecting...", end='', flush=True)
-            a.run()
+            a.run(token)
 
         except SyntaxError:
             traceback.print_exc()
