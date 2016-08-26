@@ -7,7 +7,7 @@ from atar.permissions import Permissions, PermissionsDefaults
 from atar.utils import loadFile
 
 class ATAR(discord.Client):
-    def __init__(self, configFile=ConfigDefaults.options_file):
+    def __init__(self, configFile=ConfigDefaults.options_file, permsFile=PermissionsDefaults.permsFile):
         super().__init__()
         
         self.config = Config(configFile)

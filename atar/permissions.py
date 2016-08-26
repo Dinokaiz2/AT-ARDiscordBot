@@ -1,3 +1,6 @@
+import shutil
+import configparser
+
 class PermissionsDefaults:
     permsFile = 'config/permissions.ini'
 
