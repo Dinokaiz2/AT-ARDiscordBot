@@ -37,3 +37,27 @@ class Permissions:
             ownerGroup.user_list = set(grantAll)
 
         self.groups.add(ownerGroup)
+
+class PermissionGroup:
+    def __init__(self, name, section_data):
+        self.name = name
+
+        self.commandWhitelist = section_data.get('CommandWhiteList', fallback=PermissionsDefaults.CommandWhiteList)
+        self.commandBlacklist = section_data.get('CommandBlackList', fallback=PermissionsDefaults.CommandBlackList)
+        self.grantedToRoles = section_data.get('GrantToRoles', fallback=PermissionsDefaults.GrantToRoles)
+        self.userList = section_data.get('UserList', fallback=PermissionsDefaults.UserList)
+
+        self.validate()
+
+    def validate(self):
+        if self.commandWhitelist:
+            self.commandWhitelist = set(self.commandWhitelist.lower().split())
+
+        if self.commandBlacklist:
+            self.commandBlacklist = set(self.commandBlacklist.lower().split())
+
+        if self.grantedToRoles:
+            self.grantedToRoles = set(self.grantedToRoles.split())
+
+        if self.userList:
+            self.userList = set(self.userList.split())

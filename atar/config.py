@@ -71,7 +71,7 @@ class Config:
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
         self.debug_mode = config.getboolean('MusicBot', 'DebugMode', fallback=ConfigDefaults.debug_mode)
 
-        self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
+        self.blacklistFle = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklistFile)
 
         self.run_checks()
 
@@ -171,7 +171,7 @@ class ConfigDefaults:
     debug_mode = False
 
     options_file = 'config/options.ini'
-    blacklist_file = 'config/blacklist.txt'
+    blacklistFile = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
