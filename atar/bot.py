@@ -1,14 +1,19 @@
+import sys
 import discord
 import inspect
 
 from atar.config import Config, ConfigDefaults
+from atar.permissions import Permissions, PermissionsDefaults
 from atar.utils import loadFile
 
 class ATAR(discord.Client):
     def __init__(self, configFile=ConfigDefaults.options_file):
         super().__init__()
+        
         self.config = Config(configFile)
-        self.blacklist = set(load_file(self.config.blacklist_file))
+        self.permissions = Permissions(permsFile, grantAll=[self.config.owner_id])
+        
+        self.blacklist = set(loadFile(self.config.blacklistFile))
 
     async def on_message(self, message):
         await self.wait_until_ready()
@@ -37,11 +42,11 @@ class ATAR(discord.Client):
                 return
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
-            self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, messageContent))
+            self.safePrint("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, messageContent))
             return
 
         else:
-            self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, messageContent))
+            self.safePrint("[Command] {0.id}/{0.name} ({1})".format(message.author, messageContent))
 
         userPermissions = self.permissions.for_user(message.author)
 
@@ -111,7 +116,7 @@ class ATAR(discord.Client):
                     )
 
                 docs = '\n'.join(l.strip() for l in docs.split('\n'))
-                await self.safe_send_message(
+                await self.safeSendMessage(
                     message.channel,
                     '```\n%s\n```' % docs.format(commandPrefix=self.config.commandPrefix),
                     expire_in=60
@@ -124,7 +129,7 @@ class ATAR(discord.Client):
                 if response.reply:
                     content = '%s, %s' % (message.author.mention, content)
 
-                sentmsg = await self.safe_send_message(
+                sentmsg = await self.safeSendMessage(
                     message.channel, content
                 )
 
@@ -134,7 +139,7 @@ class ATAR(discord.Client):
             expirein = e.expire_in if self.config.delete_messages else None
             alsodelete = message if self.config.delete_invoking else None
 
-            await self.safe_send_message(
+            await self.safeSendMessage(
                 message.channel,
                 '```\n%s\n```' % e.message,
                 expire_in=expirein,
@@ -147,7 +152,7 @@ class ATAR(discord.Client):
         except Exception:
             traceback.print_exc()
             if self.config.debug_mode:
-                await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
+                await self.safeSendMessage(message.channel, '```\n%s\n```' % traceback.format_exc())
 
     async def cmd_help(self, command=None):
         """

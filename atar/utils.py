@@ -1,4 +1,4 @@
-def load_file(filename, skip_commented_lines=True, comment_char='#'):
+def loadFile(filename, skip_commented_lines=True, comment_char='#'):
     try:
         with open(filename, encoding='utf8') as f:
             results = []
