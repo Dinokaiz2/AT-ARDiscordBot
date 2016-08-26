@@ -22,8 +22,8 @@ class ATAR(discord.Client):
         if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
             return  # if I want to log this I just move it under the prefix check
 
-        command, *args = message_content.split()  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
-        command = command[len(self.config.command_prefix):].lower().strip()
+        command, *args = messageContent.split()  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
+        command = command[len(self.config.commandPrefix):].lower().strip()
 
         handler = getattr(self, 'cmd_%s' % command, None)
         if not handler:
@@ -103,7 +103,7 @@ class ATAR(discord.Client):
                 docs = getattr(handler, '__doc__', None)
                 if not docs:
                     docs = 'Usage: {}{} {}'.format(
-                        self.config.command_prefix,
+                        self.config.commandPrefix,
                         command,
                         ' '.join(args_expected)
                     )
@@ -150,7 +150,7 @@ class ATAR(discord.Client):
     async def cmd_help(self, command=None):
         """
         Usage:
-            {command_prefix}help [command]
+            {commandPrefix}help [command]
 
         Prints a help message.
         If a command is specified, it prints a help message for that command.
@@ -163,7 +163,7 @@ class ATAR(discord.Client):
                 return Response(
                     "```\n{}```".format(
                         dedent(cmd.__doc__),
-                        command_prefix=self.config.command_prefix
+                        commandPrefix=self.config.commandPrefix
                     ),
                     delete_after=60
                 )
@@ -177,7 +177,7 @@ class ATAR(discord.Client):
             for att in dir(self):
                 if att.startswith('cmd_') and att != 'cmd_help':
                     command_name = att.replace('cmd_', '').lower()
-                    commands.append("{}{}".format(self.config.command_prefix, command_name))
+                    commands.append("{}{}".format(self.config.commandPrefix, command_name))
 
             helpmsg += ", ".join(commands)
             helpmsg += "```"
@@ -190,6 +190,7 @@ class ATAR(discord.Client):
             self.loop.run_until_complete(self.start(*self.config.auth))
 
         except discord.errors.LoginFailure:
+            print("o no")
             raise exceptions.HelpfulError(
                 "Can't log in, bad credentials.",
                 "Fix email/pass or token in the options file."
@@ -237,4 +238,3 @@ class Response:
         self.content = content
         self.reply = reply
         self.delete_after = delete_after
-        

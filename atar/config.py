@@ -63,7 +63,7 @@ class Config:
         self.auth = None
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
-        self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
+        self.commandPrefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.commandPrefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
         
@@ -117,7 +117,7 @@ class Config:
                     "OwnerID was not set.",
 
                     "Please set the OwnerID in the config.  If you "
-                    "don't know what that is, use the %sid command" % self.command_prefix,
+                    "don't know what that is, use the %sid command" % self.commandPrefix,
                     preface=confpreface)
 
         else:
@@ -126,7 +126,7 @@ class Config:
 
                 "Correct your OwnerID.  The ID should be just a number, approximately "
                 "18 characters long.  If you don't know what your ID is, "
-                "use the %sid command.  Current invalid OwnerID: %s" % (self.command_prefix, self.owner_id),
+                "use the %sid command.  Current invalid OwnerID: %s" % (self.commandPrefix, self.owner_id),
                 preface=confpreface)
 
         if self.bound_channels:
@@ -162,7 +162,7 @@ class ConfigDefaults:
     token = None    #
 
     owner_id = None
-    command_prefix = '!'
+    commandPrefix = '!'
     bound_channels = set()
     autojoin_channels = set()
     
