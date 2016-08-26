@@ -2,11 +2,13 @@ import discord
 import inspect
 
 from atar.config import Config, ConfigDefaults
+from atar.utils import loadFile
 
 class ATAR(discord.Client):
     def __init__(self, configFile=ConfigDefaults.options_file):
         super().__init__()
         self.config = Config(configFile)
+        self.blacklist = set(load_file(self.config.blacklist_file))
 
     async def on_message(self, message):
         await self.wait_until_ready()
