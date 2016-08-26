@@ -34,9 +34,31 @@ class Permissions:
         # Create a fake section to fallback onto the permissive default values to grant to the owner
         ownerGroup = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, None))
         if hasattr(grantAll, '__iter__'):
-            ownerGroup.user_list = set(grantAll)
+            ownerGroup.userList = set(grantAll)
 
         self.groups.add(ownerGroup)
+
+    def forUser(self, user):
+        """
+        Returns the first PermissionGroup a user belongs to
+        :param user: A discord User or Member object
+        """
+
+        for group in self.groups:
+            if user.id in group.userList:
+                return group
+
+        # The only way I could search for roles is if I add a `server=None` param and pass that too
+        if type(user) == discord_User:
+            return self.default_group
+
+        # We loop again so that we don't return a role based group before we find an assigned one
+        for group in self.groups:
+            for role in user.roles:
+                if role.id in group.granted_to_roles:
+                    return group
+
+        return self.default_group
 
 class PermissionGroup:
     def __init__(self, name, section_data):

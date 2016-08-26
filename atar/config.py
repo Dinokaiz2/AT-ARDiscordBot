@@ -71,7 +71,7 @@ class Config:
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
         self.debug_mode = config.getboolean('MusicBot', 'DebugMode', fallback=ConfigDefaults.debug_mode)
 
-        self.blacklistFle = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklistFile)
+        self.blacklistFile = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklistFile)
 
         self.run_checks()
 
