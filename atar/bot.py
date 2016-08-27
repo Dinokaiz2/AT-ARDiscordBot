@@ -1,6 +1,10 @@
 import sys
+import random
 import discord
 import inspect
+import traceback
+
+from textwrap import dedent
 
 from atar.config import Config, ConfigDefaults
 from atar.permissions import Permissions, PermissionsDefaults
@@ -54,6 +58,57 @@ class ATAR(discord.Client):
             helpmsg += "https://github.com/Dinokaiz2/AT-ARDiscordBot/wiki/Commands"
 
             return Response(helpmsg, reply=True, delete_after=60)
+
+    async def cmd_roll(self, roll, operator = None, mod = None):
+        try:
+            *numDice, dieValue = roll.split("d", 1)
+            if numDice: numDice = numDice[0]
+            if "+" in dieValue or "-" in dieValue:
+                # No spaces, unpack
+                if "+" in dieValue: operator = "+"
+                elif "-" in dieValue: operator = "-"
+                dieValue, mod = dieValue.split(operator, 1)
+                if not mod and mod != 0: raise ValueError("Operator found, but no modifier.")
+            if operator != None and len(operator) > 1: raise ValueError("Operator contained more than '+' or '-'.")
+            # numDice, dieValue, operator, mod
+            if not mod: mod = 0
+            if not numDice: numDice = 1
+            numDice, dieValue, mod = [int(x) for x in [numDice, dieValue, mod]]
+            msg = ""
+            sum = 0
+            log = []
+            for i in range(1, numDice + 1):
+                if operator == "+":
+                    log.append(random.randint(1, dieValue) + mod)
+                elif operator == "-":
+                    log.append(random.randint(1, dieValue) - mod)
+                else:
+                    log.append(random.randint(1, dieValue))
+                sum += log[-1]
+            msg += "Result: " + str(sum)
+            if 1 < numDice <= 10:
+                for i in range(1, numDice + 1):
+                    msg += "\nRoll " + str(i) + ": " + str(log[i-1])
+                    if operator == "+" and log[i-1] - mod == 1: msg += " :thumbsdown:"
+                    elif operator == "+" and log[i-1] - mod == dieValue: msg += " :ok_hand:"
+                    elif operator == "-" and log[i-1] + mod == 1: msg += " :thumbsdown:"
+                    elif operator == "-" and log[i-1] + mod == dieValue: msg += " :ok_hand:"
+                    elif log[i-1] == 1: msg += " :thumbsdown:"
+                    elif log[i-1] == dieValue: msg += " :ok_hand:"
+            elif numDice > 10:
+                msg += "\nNumber of dice too high to print all rolls."
+            elif numDice < 1: raise ValueError("Number of dice must be greater than 0.\nThe number of dice was " + str(numDice) + ".")
+            return Response(msg, reply = True)
+        except ValueError as v:
+            msg = "Invalid roll!"
+            if v.args:
+                msg += " Reason: ```"
+                for arg in v.args:
+                    msg += arg
+                msg += "```"
+            return Response(msg)
+        
+            
 
     async def on_message(self, message):
         await self.wait_until_ready()
@@ -165,7 +220,7 @@ class ATAR(discord.Client):
             if response and isinstance(response, Response):
                 content = response.content
                 if response.reply:
-                    content = '%s, %s' % (message.author.mention, content)
+                    content = '%s: %s' % (message.author.mention, content)
 
                 sentmsg = await self.safeSendMessage(
                     message.channel, content

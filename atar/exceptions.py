@@ -54,3 +54,7 @@ class HelpfulError(ATARException):
         l1 = (pretext + l1).ljust(width)
 
         return ''.join([l1, *lx])
+
+# Base class for control signals
+class Signal(Exception):
+    pass
