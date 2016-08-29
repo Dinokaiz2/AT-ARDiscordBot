@@ -1,15 +1,15 @@
 class ATARException(Exception):
     def __init__(self, message, *, expireIn=0):
-        self.message = message
+        self._message = message
         self.expireIn = expireIn
 
     @property
     def message(self):
-        return self.message
+        return self._message
 
     @property
     def messageNoFormat(self):
-        return self.message
+        return self._message
 
 # Error during command processing
 class CommandError(ATARException):
@@ -18,7 +18,7 @@ class CommandError(ATARException):
 class PermissionsError(CommandError):
     @property
     def message(self):
-        return "You don't have permission to use that command: " + self.message
+        return "You don't have permission to use that command: " + self._message
 
 class HelpfulError(ATARException):
     def __init__(self, issue, solution, *, preface="Encountered an error:\n", expire_in=0):

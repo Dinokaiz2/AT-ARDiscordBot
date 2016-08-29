@@ -60,6 +60,13 @@ class ATAR(discord.Client):
             return Response(helpmsg, reply=True, delete_after=60)
 
     async def cmd_roll(self, roll, operator = None, mod = None):
+        """
+        Usage:
+            {commandPrefix}roll [number of dice] "d" dieValue [+ or -] [modifier]
+
+        Rolls dice.
+        Can be used with or without spaces around the operator (Ex: 2d20+3/2d20 + 3).
+        """
         try:
             *numDice, dieValue = roll.split("d", 1)
             if numDice: numDice = numDice[0]
@@ -86,15 +93,22 @@ class ATAR(discord.Client):
                     log.append(random.randint(1, dieValue))
                 sum += log[-1]
             msg += "Result: " + str(sum)
-            if 1 < numDice <= 10:
+            if numDice == 1:
+                if operator == "+" and log[i-1] - mod == 1: msg += " :thumbsdown:"
+                elif operator == "+" and log[i-1] - mod == dieValue: msg += " :ok_hand:"
+                elif operator == "-" and log[i-1] + mod == 1: msg += " :thumbsdown:"
+                elif operator == "-" and log[i-1] + mod == dieValue: msg += " :ok_hand:"
+                elif operator != "+" and operator != "-" and log[i-1] == 1: msg += " :thumbsdown:"
+                elif operator != "+" and operator != "-" and log[i-1] == dieValue: msg += " :ok_hand:"
+            elif 1 < numDice <= 10:
                 for i in range(1, numDice + 1):
                     msg += "\nRoll " + str(i) + ": " + str(log[i-1])
                     if operator == "+" and log[i-1] - mod == 1: msg += " :thumbsdown:"
                     elif operator == "+" and log[i-1] - mod == dieValue: msg += " :ok_hand:"
                     elif operator == "-" and log[i-1] + mod == 1: msg += " :thumbsdown:"
                     elif operator == "-" and log[i-1] + mod == dieValue: msg += " :ok_hand:"
-                    elif log[i-1] == 1: msg += " :thumbsdown:"
-                    elif log[i-1] == dieValue: msg += " :ok_hand:"
+                    elif operator != "+" and operator != "-" and log[i-1] == 1: msg += " :thumbsdown:"
+                    elif operator != "+" and operator != "-" and log[i-1] == dieValue: msg += " :ok_hand:"
             elif numDice > 10:
                 msg += "\nNumber of dice too high to print all rolls."
             elif numDice < 1: raise ValueError("Number of dice must be greater than 0.\nThe number of dice was " + str(numDice) + ".")
@@ -107,8 +121,42 @@ class ATAR(discord.Client):
                     msg += arg
                 msg += "```"
             return Response(msg)
+
+    async def cmd_fliptable(self):
+        """
+        Usage:
+            {commandPrefix}fliptable / tableflip
+
+        Flips table.
+        """
+        return Response("(╯°□°)╯︵ ┻━┻")
+
+    async def cmd_tableflip(self):
+        """
+        Usage:
+            {commandPrefix}tableflip / fliptable
+
+        Flips table.
+        """
+        return Response("(╯°□°)╯︵ ┻━┻")
         
-            
+    async def cmd_shrug(self):
+        """
+        Usage:
+            {commandPrefix}shrug
+
+        Shrugs.
+        """
+        return Response("¯\_(ツ)_/¯")
+
+    async def cmd_lenny(self):
+        """
+        Usage:
+            {commandPrefix}lenny
+
+        Lenny face.
+        """
+        return Response("( ͡° ͜ʖ ͡°)")
 
     async def on_message(self, message):
         await self.wait_until_ready()
@@ -191,11 +239,11 @@ class ATAR(discord.Client):
                     params.pop(key)
 
             if message.author.id != self.config.owner_id:
-                if userPermissions.command_whitelist and command not in userPermissions.command_whitelist:
+                if userPermissions.commandWhitelist and command not in userPermissions.commandWhitelist:
                     raise exceptions.PermissionsError(
                         "That command is not enabled for your group (%s)" % userPermissions.name)
 
-                elif userPermissions.command_blacklist and command in userPermissions.command_blacklist:
+                elif userPermissions.commandBlacklist and command in userPermissions.commandBlacklist:
                     raise exceptions.PermissionsError(
                         "That command is disabled for your group (%s)" % userPermissions.name)
 
@@ -229,7 +277,7 @@ class ATAR(discord.Client):
         except (exceptions.CommandError, exceptions.HelpfulError) as e:
             print("{0.__class__}: {0.message}".format(e))
 
-            expirein = e.expire_in if self.config.delete_messages else None
+            expirein = e.expireIn if self.config.delete_messages else None
             alsodelete = message if self.config.delete_invoking else None
 
             await self.safeSendMessage(

@@ -1,3 +1,4 @@
+from discord import User as discord_User
 import shutil
 import configparser
 
@@ -50,15 +51,15 @@ class Permissions:
 
         # The only way I could search for roles is if I add a `server=None` param and pass that too
         if type(user) == discord_User:
-            return self.default_group
+            return self.defaultGroup
 
         # We loop again so that we don't return a role based group before we find an assigned one
         for group in self.groups:
             for role in user.roles:
-                if role.id in group.granted_to_roles:
+                if role.id in group.grantedToRoles:
                     return group
 
-        return self.default_group
+        return self.defaultGroup
 
 class PermissionGroup:
     def __init__(self, name, section_data):
