@@ -20,6 +20,8 @@ class ATAR(discord.Client):
         self.permissions = Permissions(permsFile, grantAll=[self.config.owner_id])
         
         self.blacklist = set(loadFile(self.config.blacklistFile))
+
+        self.config_ascii_doc()
     
     async def cmd_help(self, command=None):
         """
@@ -36,8 +38,7 @@ class ATAR(discord.Client):
             if cmd:
                 return Response(
                     "```\n{}```".format(
-                        dedent(cmd.__doc__),
-                        commandPrefix=self.config.commandPrefix
+                        dedent(cmd.__doc__).format(commandPrefix=self.config.commandPrefix)
                     ),
                     delete_after=60
                 )
@@ -122,42 +123,45 @@ class ATAR(discord.Client):
                 msg += "```"
             return Response(msg)
 
-    async def cmd_fliptable(self):
-        """
-        Usage:
-            {commandPrefix}fliptable / tableflip
-
-        Flips table.
-        """
+    async def ascii_fliptable(self):
         return Response("(╯°□°)╯︵ ┻━┻")
 
-    async def cmd_tableflip(self):
-        """
-        Usage:
-            {commandPrefix}tableflip / fliptable
-
-        Flips table.
-        """
+    async def ascii_tableflip(self):
         return Response("(╯°□°)╯︵ ┻━┻")
         
-    async def cmd_shrug(self):
-        """
-        Usage:
-            {commandPrefix}shrug
-
-        Shrugs.
-        """
+    async def ascii_shrug(self):
         return Response("¯\_(ツ)_/¯")
 
-    async def cmd_lenny(self):
-        """
-        Usage:
-            {commandPrefix}lenny
-
-        Lenny face.
-        """
+    async def ascii_lenny(self):
         return Response("( ͡° ͜ʖ ͡°)")
 
+    async def cmd_ascii(self, ascii):
+        """
+        Usage:
+            {{commandPrefix}}ascii name
+
+        Returns the requested ASCII.
+
+        {asciis}
+        """
+        handler = getattr(self, "ascii_%s" % ascii, None)
+        if not handler:
+            return Response("```Invalid ASCII! Do {commandPrefix}help ascii to get full list.```")
+        response = await handler()
+        
+        return(response)
+
+    def config_ascii_doc(self):
+        doc = ""
+        asciis = []
+        for att in dir(self):
+            if att.startswith("ascii_"):
+                ascii_name = att.replace('ascii_', '').lower()
+                asciis.append("{}".format(ascii_name))
+        doc += ", ".join(asciis)
+        self.cmd_ascii.__func__.__doc__ = self.cmd_ascii.__func__.__doc__.format(asciis = doc)
+
+            
     async def on_message(self, message):
         await self.wait_until_ready()
 
@@ -248,20 +252,24 @@ class ATAR(discord.Client):
                         "That command is disabled for your group (%s)" % userPermissions.name)
 
             if params:
-                docs = getattr(handler, '__doc__', None)
-                if not docs:
-                    docs = 'Usage: {}{} {}'.format(
-                        self.config.commandPrefix,
-                        command,
-                        ' '.join(args_expected)
-                    )
-
-                docs = '\n'.join(l.strip() for l in docs.split('\n'))
-                await self.safeSendMessage(
-                    message.channel,
-                    '```\n%s\n```' % docs.format(commandPrefix=self.config.commandPrefix),
-                    expire_in=60
-                )
+##                docs = getattr(handler, '__doc__', None)
+##                if not docs:
+##                    docs = 'Usage: {}{} {}'.format(
+##                        self.config.commandPrefix,
+##                        command,
+##                        ' '.join(args_expected)
+##                    )
+##
+##                docs = '\n'.join(l.strip() for l in docs.split('\n'))
+##                await self.safeSendMessage(
+##                    message.channel,
+##                    '```\n%s\n```' % docs.format(commandPrefix=self.config.commandPrefix),
+##                    expire_in=60
+##                )
+                response = await self.cmd_help(command)
+                await self.safeSendMessage(message.channel,
+                                           response.content
+                                           )
                 return
 
             response = await handler(**handler_kwargs)
