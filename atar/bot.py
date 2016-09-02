@@ -3,12 +3,14 @@ import random
 import discord
 import inspect
 import traceback
+from cleverbot import Cleverbot
 
 from textwrap import dedent
 
 from atar.config import Config, ConfigDefaults
 from atar.permissions import Permissions, PermissionsDefaults
 from atar.utils import loadFile
+import atar.fight as fight
 
 from . import exceptions
 
@@ -22,6 +24,9 @@ class ATAR(discord.Client):
         self.blacklist = set(loadFile(self.config.blacklistFile))
 
         self.config_ascii_doc()
+        self.config_meme_doc()
+
+        self.cb = Cleverbot()
     
     async def cmd_help(self, command=None):
         """
@@ -135,6 +140,46 @@ class ATAR(discord.Client):
     async def ascii_lenny(self):
         return Response("( ͡° ͜ʖ ͡°)")
 
+    async def ascii_sunglasses(self):
+        return Response("⊂(▀¯▀⊂)")
+
+    async def ascii_yay(self):
+        return Response("╰( ◕ ᗜ ◕ )╯")
+
+    async def ascii_giff(self):
+        return Response("༼つ ◕_◕ ༽つ")
+
+    async def ascii_whytho(self):
+        return Response("ლ(ಥ Д ಥ )ლ")
+
+    async def ascii_raisedongers(self):
+        return Response("ヽ༼ ◉  ͜  ◉༽ﾉ")
+
+    async def ascii_surprised(self):
+        return Response("╰། ◉ ◯ ◉ །╯")
+
+    async def ascii_monocle(self):
+        return Response("(╭ರ_⊙)")
+
+    async def ascii_run(self):
+        return Response("ᕕ( ՞ ᗜ ՞ )ᕗ")
+
+    async def ascii_finger(self):
+        return Response(r"""--------------/¯/) 
+-------------/¯  / 
+-----------/    / 
+-----/´¯/'   '/´¯)
+---/   /     /     /  |¯\ 
+--(     ´    ´      ¯~/'  ') 
+---\                  '     / 
+-----\                 /
+-------\            ( 
+---------\          \
+""")
+
+    async def ascii_thumbsup(self):
+        return Response("────────────────────░███░\n───────────────────░█░░░█░\n──────────────────░█░░░░░█░\n─────────────────░█░░░░░█░\n──────────░░░───░█░░░░░░█░\n─────────░███░──░█░░░░░█░\n───────░██░░░██░█░░░░░█░\n──────░█░░█░░░░██░░░░░█░\n────░██░░█░░░░░░█░░░░█░\n───░█░░░█░░░░░░░██░░░█░\n──░█░░░░█░░░░░░░░█░░░█░\n──░█░░░░░█░░░░░░░░█░░░█░\n──░█░░█░░░█░░░░░░░░█░░█░\n─░█░░░█░░░░██░░░░░░█░░█░\n─░█░░░░█░░░░░██░░░█░░░█░\n─░█░█░░░█░░░░░░███░░░░█░\n░█░░░█░░░██░░░░░█░░░░░█░\n░█░░░░█░░░░█████░░░░░█░\n░█░░░░░█░░░░░░░█░░░░░█░\n░█░█░░░░██░░░░█░░░░░█░\n─░█░█░░░░░████░░░░██░\n─░█░░█░░░░░░░█░░██░█░\n──░█░░██░░░██░░█░░░█░\n───░██░░███░░██░█░░█░\n────░██░░░███░░░█░░░█░\n──────░███░░░░░░█░░░█░\n──────░█░░░░░░░░█░░░█░\n──────░█░░░░░░░░░░░░█░\n──────░█░░░░░░░░░░░░░█░\n──────░█░░░░░░░░░░░░░█░")
+
     async def cmd_ascii(self, ascii):
         """
         Usage:
@@ -146,7 +191,7 @@ class ATAR(discord.Client):
         """
         handler = getattr(self, "ascii_%s" % ascii, None)
         if not handler:
-            return Response("```Invalid ASCII! Do {commandPrefix}help ascii to get full list.```")
+            return Response("```Invalid ASCII! Do {commandPrefix}help ascii to get full list.```".format(commandPrefix=self.config.commandPrefix))
         response = await handler()
         
         return(response)
@@ -161,7 +206,83 @@ class ATAR(discord.Client):
         doc += ", ".join(asciis)
         self.cmd_ascii.__func__.__doc__ = self.cmd_ascii.__func__.__doc__.format(asciis = doc)
 
-            
+    async def meme_template(self):
+        return Response("http://imgur.com/a/jOscg")
+    
+    async def cmd_meme(self, meme):
+        """
+        Usage:
+            {{commandPrefix}}meme name
+
+        Returns the requested meme.
+
+        {memes}
+        """
+        handler = getattr(self, "meme_%s" % meme, None)
+        if not handler:
+            return Response("```Invalid meme! Do {commandPrefix}help meme to get full list.```".format(commandPrefix=self.config.commandPrefix))
+        response = await handler()
+        
+        return(response)
+
+    def config_meme_doc(self):
+        doc = ""
+        memes = []
+        for att in dir(self):
+            if att.startswith("meme_"):
+                meme_name = att.replace('meme_', '').lower()
+                memes.append("{}".format(meme_name))
+        doc += ", ".join(memes)
+        self.cmd_meme.__func__.__doc__ = self.cmd_meme.__func__.__doc__.format(memes = doc)
+
+    async def cmd_cleverbot(self, query):
+        answer = self.cb.ask(query)
+        return Response(answer, reply=True)
+
+    async def cmd_stats(self, author, server, stat, user=None):
+        """
+        Usage:
+            {commandPrefix}stats stat [mention]
+
+        Returns the stat score for the requested user.
+        If no user was specified, it returns the stat of the invoker.
+        """
+        try:
+            if user == None:
+                user = author.id
+            else:
+                for member in server.members:
+                    if user == member.mention:
+                        user = member.id
+                        break
+                else:
+                    raise LookupError("User " + str(user) + " does not exist.")
+            stat_value = await fight.Stats.get_stat(user, stat.upper(), False)
+            return Response(stat.upper() + ": " + stat_value, reply=True)
+        except LookupError as l:
+            if l.args:
+                msg = "```"
+                for arg in l.args:
+                    msg += arg
+                msg += "```"
+            return Response(msg)
+
+    async def cmd_register(self, author):
+        try:
+            msg = await fight.Stats.register(author.id)
+            if msg:
+                return Response(msg, reply=True)
+        except LookupError as l:
+            if l.args:
+                msg = "```"
+                for arg in l.args:
+                    msg += arg
+                msg += "```"
+            return Response(msg)
+
+    async def cmd_fight(self):
+        pass
+
     async def on_message(self, message):
         await self.wait_until_ready()
 
@@ -271,7 +392,7 @@ class ATAR(discord.Client):
                                            response.content
                                            )
                 return
-
+            
             response = await handler(**handler_kwargs)
             if response and isinstance(response, Response):
                 content = response.content
