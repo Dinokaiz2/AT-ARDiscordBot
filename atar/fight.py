@@ -37,10 +37,13 @@ class Monster:
         self.challenge_rating = 0
 
     async def attack(self, fight, member):
+        if random.random() > self.ACC:
+            return False, 0, generateMissString()
         dmg = self.ATK
         rng = random.randint(int(-dmg * 0.2), int(dmg * 0.2)))
         dmg += rng
         Stats.set_stat(member.id, Stats.HP, dmg, True)
+        return True, dmg, generateAttackString()
 
     async def take_damage(damage, ignore_def=False):
         if not ignore_def:
@@ -50,8 +53,22 @@ class Monster:
         self.HP -= damage
         if self.HP <= 0: self.alive = False
         else: self.alive = True
-        return self.alive
+        return damage, generateHurtString()
 
+    @abc.abstractmethod
+    def generateMissString():
+        """Generates a string for when the monster misses an attack."""
+        return
+
+    @abc.abstractmethod
+    def generateAttackString():
+        """Generates a string for when the monster hits an attack."""
+        return
+
+    @abc.abstractmethod
+    def generateHurtString():
+        """Generates a string for when the monster is hit by an attack."""
+        return
     
 
 class FileHelper:
