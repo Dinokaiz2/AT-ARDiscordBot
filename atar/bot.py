@@ -27,6 +27,7 @@ class ATAR(discord.Client):
         self.config_meme_doc()
 
         self.cb = Cleverbot()
+        self.fight = None
     
     async def cmd_help(self, command=None):
         """

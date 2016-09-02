@@ -8,6 +8,7 @@ from discord import User as discord_User
 class Fight:
     def __init__(self, instigator):
         self.players = [[instigator.id, 0]]
+        self.monster = random.choice([Zombie()]) # Matchmaking
 
     def add_player(member):
         for player, lastHit in self.players:
@@ -25,25 +26,35 @@ class Fight:
                 return True
         return False
 
+    async def attack(attacker):
+        if random.random > attacker.ACC:
+            return self.monster.generate_dodge_string().format(player_name=attacker.mention)
+        dmg = Stats.get_stat(attacker.id, Stats.ATK)
+        rng = random.randint(int(-dmg * 0.2), int(dmg * 0.2))
+        dmg += rng
+        dmg, string = self.monster.take_damage(dmg)
+        string = string.format(player_name=attacker.mention, damage=dmg)
+        return string
+
 class Monster:
     __metaclass__ = abc.ABCMeta
     
-    def __init__(self):
+    def __init__(self, HP, ATK, DEF, ACC, challenge_rating):
         self.HP = 0
         self.ATK = 0
         self.DEF = 0
         self.ACC = 0
-        self.alive = True
         self.challenge_rating = 0
+        self.alive = True
 
     async def attack(self, fight, member):
         if random.random() > self.ACC:
-            return False, 0, generateMissString()
+            return False, 0, generate_miss_string()
         dmg = self.ATK
-        rng = random.randint(int(-dmg * 0.2), int(dmg * 0.2)))
+        rng = random.randint(int(-dmg * 0.2), int(dmg * 0.2))
         dmg += rng
         Stats.set_stat(member.id, Stats.HP, dmg, True)
-        return True, dmg, generateAttackString()
+        return True, dmg, generate_attack_string()
 
     async def take_damage(damage, ignore_def=False):
         if not ignore_def:
@@ -53,22 +64,77 @@ class Monster:
         self.HP -= damage
         if self.HP <= 0: self.alive = False
         else: self.alive = True
-        return damage, generateHurtString()
+        return damage, generate_hurt_string()
 
     @abc.abstractmethod
+    def generate_miss_string():
+        """
+        Generates a string for when the monster misses an attack.
+        All strings must contain a player name.
+        """
+        return
+
+    @abc.abstractmethod
+    def generate_dodge_string():
+        """
+        Generates a string for when a player misses an attack on the monster.
+        All strings must contain a player name.
+        """
+        return
+
+    @abc.abstractmethod
+    def generate_attack_string():
+        """
+        Generates a string for when the monster hits an attack.
+        All strings must contain a player name and a damage dealt value.
+        """
+        return
+
+    @abc.abstractmethod
+    def generate_hurt_string():
+        """
+        Generates a string for when the monster is hit by an attack.
+        All strings must contain a player name and a damage taken value.
+        """
+        return
+
+class Zombie(Monster):
+    def __init__(self):
+        super.__init__(10, 3, 1, 0.7, 1)
+
     def generateMissString():
-        """Generates a string for when the monster misses an attack."""
-        return
+        """
+        Generates a string for when the monster misses an attack.
+        All strings must contain a player name.
+        """
+        return random.choice([("The zombie lunges at {player_name}!\n"
+                              "The attack missed.")])
 
-    @abc.abstractmethod
+    def generateDodgeString():
+        """
+        Generates a string for when a player misses an attack on the monster.
+        All strings must contain a player name.
+        """
+        return random.choice([("{player_name} shot at the zombie with a crossbow!\n"
+                              "The attack missed.")])
+
     def generateAttackString():
-        """Generates a string for when the monster hits an attack."""
-        return
+        """
+        Generates a string for when the monster hits an attack.
+        All strings must contain a player name and a damage dealt value.
+        """
+        return random.choice([("The zombie lunges at {player_name}!\n"
+                               "{player_name} was bit by the zombie.\n"
+                               "They took {damage} damage.")])
 
-    @abc.abstractmethod
     def generateHurtString():
-        """Generates a string for when the monster is hit by an attack."""
-        return
+        """
+        Generates a string for when the monster is hit by an attack.
+        All strings must contain a player name and a damage taken value.
+        """
+        return random.choice([("{player_name} shot at the zombie with a crossbow!\n"
+                               "The bolt hits the zombie. It loses {damage} health.")])
+
     
 
 class FileHelper:
