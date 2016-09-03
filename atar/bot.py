@@ -282,16 +282,19 @@ class ATAR(discord.Client):
             return Response(msg)
 
     async def cmd_fight(self, author):
-        if not fight:
+        if self.fight:
             return Response("```A battle is already in progress! Use {commandPrefix}attack to attack the monster!```".format(commandPrefix=self.config.commandPrefix))
         self.fight = fight.Fight(author)
         return Response(self.fight.monster.generate_start_string())
 
     async def cmd_attack(self, author):
         try:
-            response = self.fight.attack(author)
+            response, alive = await self.fight.attack(author)
+            if not alive:
+                self.fight = None
             return Response(response)
-        except AttributeError:
+        except AttributeError as a:
+            print(a)
             return Response("```No fight is currently in progress! Use {commandPrefix}fight to start a fight!```".format(commandPrefix=self.config.commandPrefix))
 
     async def on_message(self, message):
