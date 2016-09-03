@@ -9,14 +9,15 @@ class Fight:
     def __init__(self, instigator):
         self.players = [[instigator.id, 0]]
         self.monster = random.choice([Zombie()]) # Matchmaking
+        self.PLAYER_ATTACK_COOLDOWN = 60
 
-    def add_player(member):
+    def add_player(member, lasthit=0):
         for player, lastHit in self.players:
             if player == member:
                 break
         else:
             # If player not found, add player
-            self.players.append([member.id, 0])
+            self.players.append([member.id, lasthit])
             return
         raise ValueError("That player already is already in the battle.")
 
@@ -26,8 +27,30 @@ class Fight:
                 return True
         return False
 
-    async def attack(attacker):
-        if random.random > attacker.ACC:
+    def get_player_lasthit(player, force=False):
+        for id, last_hit in self.players:
+            if id == player.id:
+                return last_hit
+        if not force:
+            raise ValueError("Player not found!")
+        add_player(player, 0)
+        return 0
+
+    def set_player_lasthit(player, lasthit, force=False):
+        for id, last_hit in self.players:
+            if id == player.id:
+                last_hit = lasthit
+                break
+        else:
+            if not force:
+                raise ValueError("Player not found!")
+            add_player(player, lasthit)
+
+    async def attack(attacker, force=False):
+        if time.time() - get_player_lasthit(attacker, force=True) < self.PLAYER_ATTACK_COOLDOWN:
+            return("You can\'t fight yet! Check back again in {seconds} seconds.".format(seconds=int(60-(time.time()-get_player_lasthit(attacker)))))
+        set_player_lasthit(attacker, time.time())
+        if random.random > Stats.get(attacker.id, Stats.ACC):
             return self.monster.generate_dodge_string().format(player_name=attacker.mention)
         dmg = Stats.get_stat(attacker.id, Stats.ATK)
         rng = random.randint(int(-dmg * 0.2), int(dmg * 0.2))
@@ -67,6 +90,13 @@ class Monster:
         return damage, generate_hurt_string()
 
     @abc.abstractmethod
+    def generate_start_string():
+        """
+        Generates a string for when this monster first appears in battle.
+        """
+        return
+
+    @abc.abstractmethod
     def generate_miss_string():
         """
         Generates a string for when the monster misses an attack.
@@ -100,38 +130,25 @@ class Monster:
 
 class Zombie(Monster):
     def __init__(self):
-        super.__init__(10, 3, 1, 0.7, 1)
+        super().__init__(10, 3, 1, 0.7, 1)
 
-    def generateMissString():
-        """
-        Generates a string for when the monster misses an attack.
-        All strings must contain a player name.
-        """
+    def generate_start_string():
+        return random.choice([("A zombie appeared!")])
+
+    def generate_miss_string():
         return random.choice([("The zombie lunges at {player_name}!\n"
                               "The attack missed.")])
 
-    def generateDodgeString():
-        """
-        Generates a string for when a player misses an attack on the monster.
-        All strings must contain a player name.
-        """
+    def generate_dodge_string():
         return random.choice([("{player_name} shot at the zombie with a crossbow!\n"
                               "The attack missed.")])
 
-    def generateAttackString():
-        """
-        Generates a string for when the monster hits an attack.
-        All strings must contain a player name and a damage dealt value.
-        """
+    def generate_attack_string():
         return random.choice([("The zombie lunges at {player_name}!\n"
                                "{player_name} was bit by the zombie.\n"
                                "They took {damage} damage.")])
 
-    def generateHurtString():
-        """
-        Generates a string for when the monster is hit by an attack.
-        All strings must contain a player name and a damage taken value.
-        """
+    def generate_hurt_string():
         return random.choice([("{player_name} shot at the zombie with a crossbow!\n"
                                "The bolt hits the zombie. It loses {damage} health.")])
 
@@ -180,7 +197,7 @@ class Stats:
                 statSheet.write("\n\n")
                 statSheet.write(str(id) + " {\n")
                 for stat in Stats.stats:
-                    statSheet.write("\t" + stat + ": " + str(Stats.statDefaults.get(stat) + "\n")
+                    statSheet.write("\t" + stat + ": " + str(Stats.statDefaults.get(stat)) + "\n")
                 statSheet.write("}")
             await Stats.set_stat(id, stat_type, value, relative)
             return
@@ -217,7 +234,7 @@ class Stats:
                 statSheet.write("\n\n")
                 statSheet.write(str(id) + " {\n")
                 for stat in Stats.stats:
-                    statSheet.write("\t" + stat + ": " + str(Stats.statDefaults.get(stat) + "\n")
+                    statSheet.write("\t" + stat + ": " + str(Stats.statDefaults.get(stat)) + "\n")
                 statSheet.write("}")
             return Stats.get_stat(id, stat_type)
         for i in line_numbers:
@@ -248,7 +265,7 @@ class Stats:
                 statSheet.write("\n\n")
                 statSheet.write(str(id) + " {\n")
                 for stat in Stats.stats:
-                    statSheet.write("\t" + stat + ": " + str(Stats.statDefaults.get(stat) + "\n")
+                    statSheet.write("\t" + stat + ": " + str(Stats.statDefaults.get(stat)) + "\n")
                 statSheet.write("}")
             return "Successfully registered!"
         raise LookupError("That user is already registered.")
