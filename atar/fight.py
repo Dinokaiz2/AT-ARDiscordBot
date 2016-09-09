@@ -33,7 +33,7 @@ class Fight:
                 return last_hit
         if not force:
             raise ValueError("Player not found!")
-        add_player(player, 0)
+        self.add_player(player, 0)
         return 0
 
     def set_player_lasthit(self, player, lasthit, force=False):

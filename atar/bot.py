@@ -75,7 +75,21 @@ class ATAR(discord.Client):
         Can be used with or without spaces around the operator (Ex: 2d20+3/2d20 + 3).
         """
         try:
+            dis = False
+            adv = False
             *numDice, dieValue = roll.split("d", 1)
+            if "d" in dieValue or "d" in operator or "d" in mod:
+                dieValue = dieValue.replace("d", "")
+                roll = roll.replace("d", "")
+                operator = operator.replace("d", "")
+                mod = mod.replace("d", "")
+                dis = True
+            elif "a" in dieValue or "a" in operator or "a" in mod:
+                dieValue = dieValue.replace("a", "")
+                roll = roll.replace("a", "")
+                operator = operator.replace("a", "")
+                mod = mod.replace("a", "")
+                adv = True
             if numDice: numDice = numDice[0]
             if "+" in dieValue or "-" in dieValue:
                 # No spaces, unpack
@@ -209,6 +223,9 @@ class ATAR(discord.Client):
 
     async def meme_template(self):
         return Response("http://imgur.com/a/jOscg")
+
+    async def meme_triggered(self):
+        return Response("http://i.imgur.com/h0LjtCP.gif")
     
     async def cmd_meme(self, meme):
         """
@@ -259,7 +276,8 @@ class ATAR(discord.Client):
                 else:
                     raise LookupError("User " + str(user) + " does not exist.")
             stat_value = await fight.Stats.get_stat(user, stat.upper(), False)
-            return Response(stat.upper() + ": " + stat_value, reply=True)
+            if int(stat_value) == stat_value: stat_value = int(stat_value)
+            return Response(stat.upper() + ": " + str(stat_value), reply=True)
         except LookupError as l:
             if l.args:
                 msg = "```"
