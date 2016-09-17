@@ -3,7 +3,6 @@ import abc
 import time
 import random
 import asyncio
-from discord import User as discord_User
 
 class Fight:
     def __init__(self, instigator):
@@ -48,6 +47,9 @@ class Fight:
                 raise ValueError("Player not found!")
             add_player(player, lasthit)
 
+    async def start_monster_attacks(self):
+        await self.monster.attack_recur_start(self.players, 1)
+
     async def attack(self, attacker, force=False):
         if time.time() - self.get_player_lasthit(attacker, force=True) < self.PLAYER_ATTACK_COOLDOWN:
             return "You can\'t fight yet! Check back again in {seconds} seconds.".format(seconds=int(60-(time.time()-self.get_player_lasthit(attacker)))), self.monster.alive
@@ -64,23 +66,40 @@ class Fight:
 class Monster:
     __metaclass__ = abc.ABCMeta
     
-    def __init__(self, HP, ATK, DEF, ACC, challenge_rating):
+    def __init__(self, HP, ATK, DEF, ACC, SPD, challenge_rating):
         self.HP = HP
         self.ATK = ATK
         self.DEF = DEF
         self.ACC = ACC
+        self.SPD = SPD
         self.challenge_rating = challenge_rating
         self.alive = True
 
-    async def attack(self, fight, member):
+    async def attack(self, id):
+        print("wow so attack very hurt ouchies")
         if random.random() > self.ACC:
-            return False, 0, generate_miss_string()
-        dmg = self.ATK
+            return False, 0, self.generate_miss_string()
+        dmg = -self.ATK
         rng = random.randint(int(-dmg * 0.2), int(dmg * 0.2))
         dmg += rng
-        Stats.set_stat(member.id, Stats.HP, dmg, True)
-        return True, dmg, generate_attack_string()
+        await Stats.set_stat(id, Stats.HP, dmg, True)
+        ## DKFH:LDKFHD PUT THE MESSAGE SEND HERE PASS CLIENT TO FIGHT CLASS WHICH PASSES TO THIS CLASS
+        return True, dmg, self.generate_attack_string()
 
+    async def attack_recur_start(self, players, initial_sec_mult):
+        rng = random.randint(int(-self.SPD * 0.5), int(self.SPD * 0.5))
+        await asyncio.sleep((self.SPD + rng) * 0.5)
+        await self.attack_recur(players)
+
+    async def attack_recur(self, players):
+        print("wow attack so recur")
+        print(players)
+        player = random.choice(players)[1]
+        await self.attack(player)
+        rng = random.randint(int(-self.SPD * 0.5), int(self.SPD * 0.5))
+        await asyncio.sleep(self.SPD + rng)
+        await self.attack_recur(players)
+        
     async def take_damage(self, damage, ignore_def=False):
         if not ignore_def:
             rng = random.randint(int(-self.DEF * 0.2), int(self.DEF * 0.2))
@@ -89,7 +108,7 @@ class Monster:
         self.HP -= damage
         if self.HP <= 0:
             self.alive = False
-            return damage, "\n".join([self.generate_attack_string(), self.generate_death_string()])
+            return damage, "\n".join([self.generate_hurt_string(), self.generate_death_string()])
         self.alive = True
         return damage, self.generate_hurt_string()
 
@@ -141,7 +160,7 @@ class Monster:
 
 class Zombie(Monster):
     def __init__(self):
-        super().__init__(10, 3, 1, 0.7, 1)
+        super().__init__(10, 3, 1, 0.7, 1, 10)
 
     def generate_start_string(self):
         return random.choice([("A zombie appeared!")])

@@ -11,6 +11,7 @@ from atar.config import Config, ConfigDefaults
 from atar.permissions import Permissions, PermissionsDefaults
 from atar.utils import loadFile
 import atar.fight as fight
+import atar.insult as insult
 
 from . import exceptions
 
@@ -66,6 +67,24 @@ class ATAR(discord.Client):
 
             return Response(helpmsg, reply=True, delete_after=60)
 
+    async def cmd_lame(self):
+        """
+        Usage:
+            {commandPrefix}kys
+
+        die
+        """
+        return Response("kys", reply=True)
+
+    async def cmd_insult(self, leftoverArgs):
+        """
+        Usage:
+            {commandPrefix}insult person
+
+        Inflicts a sick burn upon the sorry soul of your choosing.
+        """
+        return Response(str(' '.join(leftoverArgs)) + ": " + insult.getRandomInsult())
+
     async def cmd_roll(self, roll, operator = None, mod = None):
         """
         Usage:
@@ -78,6 +97,8 @@ class ATAR(discord.Client):
             dis = False
             adv = False
             *numDice, dieValue = roll.split("d", 1)
+            if not operator: operator = ""
+            if not mod: mod = ""
             if "d" in dieValue or "d" in operator or "d" in mod:
                 dieValue = dieValue.replace("d", "")
                 roll = roll.replace("d", "")
@@ -139,6 +160,14 @@ class ATAR(discord.Client):
             if v.args:
                 msg += " Reason: ```"
                 for arg in v.args:
+                    msg += arg
+                msg += "```"
+            return Response(msg)
+        except TypeError as t:
+            msg = "Invalid roll!"
+            if t.args:
+                msg += " Reason: ```"
+                for arg in t.args:
                     msg += arg
                 msg += "```"
             return Response(msg)
@@ -287,6 +316,12 @@ class ATAR(discord.Client):
             return Response(msg)
 
     async def cmd_register(self, author):
+        """
+        Usage:
+            {commandPrefix}register
+
+        Registers the user invoking it into the fight system.
+        """
         try:
             msg = await fight.Stats.register(author.id)
             if msg:
@@ -300,12 +335,26 @@ class ATAR(discord.Client):
             return Response(msg)
 
     async def cmd_fight(self, author):
+        """
+        Usage:
+            {commandPrefix}fight
+
+        Starts a fight.
+        """
         if self.fight:
             return Response("```A battle is already in progress! Use {commandPrefix}attack to attack the monster!```".format(commandPrefix=self.config.commandPrefix))
         self.fight = fight.Fight(author)
+        await self.fight.start_monster_attacks()
         return Response(self.fight.monster.generate_start_string())
 
     async def cmd_attack(self, author):
+        """
+        Usage:
+            {commandPrefix}attack
+
+        Attacks the currently active monster.
+        A fight must have already been started using {commandPrefix}fight.
+        """
         try:
             response, alive = await self.fight.attack(author)
             if not alive:
@@ -314,6 +363,19 @@ class ATAR(discord.Client):
         except AttributeError as a:
             print(a)
             return Response("```No fight is currently in progress! Use {commandPrefix}fight to start a fight!```".format(commandPrefix=self.config.commandPrefix))
+
+    async def cmd_shockingtruth(self):
+        """
+        Usage:
+            {commandPrefix}shockingtruth
+
+        Displays the link to the GitHub repository for a terrible fanfiction.
+        Don't do it.
+        Don't click on it.
+        ...
+        Please.
+        """
+        return Response("https://github.com/Dinokaiz2/The-Shocking-Truth")
 
     async def on_message(self, message):
         await self.wait_until_ready()
