@@ -1,10 +1,15 @@
+import os
+import re
 import sys
+import time
 import random
+import asyncio
 import discord
 import inspect
 import traceback
 from cleverbot import Cleverbot
 
+from math import *
 from textwrap import dedent
 
 from atar.config import Config, ConfigDefaults
@@ -12,8 +17,25 @@ from atar.permissions import Permissions, PermissionsDefaults
 from atar.utils import loadFile
 import atar.fight as fight
 import atar.insult as insult
+import atar.navyseal as navyseal
+import atar.rollhelper as rollhelper
 
 from . import exceptions
+
+class FileHelper:
+    @staticmethod
+    def get_all_lines_in_block(startLine, lines):
+        line_numbers = [startLine]
+        for i in range(1, 100):
+            line_numbers.append(line_numbers[-1]+1)
+            if '}' in lines[line_numbers[-1]]:
+                return line_numbers
+
+    @staticmethod
+    def get_full_path(rel_path):
+        script_dir = os.path.dirname(__file__)
+        abs_file_path = os.path.join(script_dir, rel_path)
+        return abs_file_path
 
 class ATAR(discord.Client):
     def __init__(self, configFile=ConfigDefaults.options_file, permsFile=PermissionsDefaults.permsFile):
@@ -29,6 +51,7 @@ class ATAR(discord.Client):
 
         self.cb = Cleverbot()
         self.fight = None
+        self.seriousMode = False
     
     async def cmd_help(self, command=None):
         """
@@ -67,15 +90,6 @@ class ATAR(discord.Client):
 
             return Response(helpmsg, reply=True, delete_after=60)
 
-    async def cmd_lame(self):
-        """
-        Usage:
-            {commandPrefix}kys
-
-        die
-        """
-        return Response("kys", reply=True)
-
     async def cmd_insult(self, leftoverArgs):
         """
         Usage:
@@ -85,47 +99,76 @@ class ATAR(discord.Client):
         """
         return Response(str(' '.join(leftoverArgs)) + ": " + insult.getRandomInsult())
 
-    async def cmd_roll(self, roll, operator = None, mod = None):
+    async def cmd_eval(self, leftoverArgs):
         """
         Usage:
-            {commandPrefix}roll [number of dice] "d" dieValue [+ or -] [modifier]
+            {commandPrefix}eval expression
 
-        Rolls dice.
-        Can be used with or without spaces around the operator (Ex: 2d20+3/2d20 + 3).
+        Evaluates an numerical expression.
         """
+        ex = ' '.join(leftoverArgs)
+        safe_list = ['math','acos', 'asin', 'atan', 'atan2', 'ceil', 'cos', 'cosh', 'de\
+        grees', 'e', 'exp', 'fabs', 'floor', 'fmod', 'frexp', 'hypot', 'ldexp', 'log',\
+        'log10', 'modf', 'pi', 'pow', 'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh']
+        safe_dict = dict([ (k, locals().get(k, None)) for k in safe_list ])
+        safe_dict['abs'] = abs
         try:
-            dis = False
-            adv = False
-            *numDice, dieValue = roll.split("d", 1)
-            if not operator: operator = ""
-            if not mod: mod = ""
-            if "d" in dieValue or "d" in operator or "d" in mod:
-                dieValue = dieValue.replace("d", "")
-                roll = roll.replace("d", "")
-                operator = operator.replace("d", "")
-                mod = mod.replace("d", "")
-                dis = True
-            elif "a" in dieValue or "a" in operator or "a" in mod:
-                dieValue = dieValue.replace("a", "")
-                roll = roll.replace("a", "")
-                operator = operator.replace("a", "")
-                mod = mod.replace("a", "")
-                adv = True
-            if numDice: numDice = numDice[0]
-            if "+" in dieValue or "-" in dieValue:
-                # No spaces, unpack
-                if "+" in dieValue: operator = "+"
-                elif "-" in dieValue: operator = "-"
-                dieValue, mod = dieValue.split(operator, 1)
-                if not mod and mod != 0: raise ValueError("Operator found, but no modifier.")
-            if operator != None and len(operator) > 1: raise ValueError("Operator contained more than '+' or '-'.")
-            # numDice, dieValue, operator, mod
-            if not mod: mod = 0
-            if not numDice: numDice = 1
-            numDice, dieValue, mod = [int(x) for x in [numDice, dieValue, mod]]
-            msg = ""
-            sum = 0
-            log = []
+            return Response(eval(ex, {"__builtins__": None}, safe_dict), reply=True)
+        except SyntaxError as s:
+            return Response("```Invalid expression!```")
+
+    async def roll(self, author, leftoverArgs, roll, operator=None, mod=None):
+        dis = False
+        adv = False
+        *numDice, dieValue = roll.split("d", 1)
+        if not operator: operator = ""
+        if not mod: mod = ""
+        if "d" in dieValue or "d" in operator or "d" in mod:
+            dieValue = dieValue.replace("d", "")
+            roll = roll.replace("d", "")
+            operator = operator.replace("d", "")
+            mod = mod.replace("d", "")
+            dis = True
+        elif "a" in dieValue or "a" in operator or "a" in mod:
+            dieValue = dieValue.replace("a", "")
+            roll = roll.replace("a", "")
+            operator = operator.replace("a", "")
+            mod = mod.replace("a", "")
+            adv = True
+        if numDice: numDice = numDice[0]
+        if "+" in dieValue or "-" in dieValue:
+            # No spaces, unpack
+            if "+" in dieValue: operator = "+"
+            elif "-" in dieValue: operator = "-"
+            dieValue, mod = dieValue.split(operator, 1)
+            if not mod and mod != 0: raise ValueError("Operator found, but no modifier.")
+        if operator != None and len(operator) > 1: raise ValueError("Operator contained more than '+' or '-'.")
+        # numDice, dieValue, operator, mod
+        if not mod: mod = 0
+        if not numDice: numDice = 1
+        numDice, dieValue, mod = [int(x) for x in [numDice, dieValue, mod]]
+        msg = ""
+        sum = 0
+        log = []
+        if adv:
+            for i in range(1, numDice + 1):
+                if operator == "+":
+                    log.append(max(random.randint(1, dieValue) + mod, random.randint(1, dieValue) + mod))
+                elif operator == "-":
+                    log.append(max(random.randint(1, dieValue) - mod, random.randint(1, dieValue) - mod))
+                else:
+                    log.append(max(random.randint(1, dieValue), random.randint(1, dieValue)))
+                sum += log[-1]
+        elif dis:
+            for i in range(1, numDice + 1):
+                if operator == "+":
+                    log.append(min(random.randint(1, dieValue) + mod, random.randint(1, dieValue) + mod))
+                elif operator == "-":
+                    log.append(min(random.randint(1, dieValue) - mod, random.randint(1, dieValue) - mod))
+                else:
+                    log.append(min(random.randint(1, dieValue), random.randint(1, dieValue)))
+                sum += log[-1]
+        else:
             for i in range(1, numDice + 1):
                 if operator == "+":
                     log.append(random.randint(1, dieValue) + mod)
@@ -134,27 +177,134 @@ class ATAR(discord.Client):
                 else:
                     log.append(random.randint(1, dieValue))
                 sum += log[-1]
-            msg += "Result: " + str(sum)
-            if numDice == 1:
+        msg += "Result: " + str(sum)
+        if dis:
+            msg += " :red_circle:"
+        elif adv:
+            msg += " :large_blue_circle:"
+        if numDice == 1:
+            if operator == "+" and log[i-1] - mod == 1: msg += " :thumbsdown:"
+            elif operator == "+" and log[i-1] - mod == dieValue: msg += " :ok_hand:"
+            elif operator == "-" and log[i-1] + mod == 1: msg += " :thumbsdown:"
+            elif operator == "-" and log[i-1] + mod == dieValue: msg += " :ok_hand:"
+            elif operator != "+" and operator != "-" and log[i-1] == 1: msg += " :thumbsdown:"
+            elif operator != "+" and operator != "-" and log[i-1] == dieValue: msg += " :ok_hand:"
+        elif 1 < numDice <= 10:
+            for i in range(1, numDice + 1):
+                msg += "\nRoll " + str(i) + ": " + str(log[i-1])
                 if operator == "+" and log[i-1] - mod == 1: msg += " :thumbsdown:"
                 elif operator == "+" and log[i-1] - mod == dieValue: msg += " :ok_hand:"
                 elif operator == "-" and log[i-1] + mod == 1: msg += " :thumbsdown:"
                 elif operator == "-" and log[i-1] + mod == dieValue: msg += " :ok_hand:"
                 elif operator != "+" and operator != "-" and log[i-1] == 1: msg += " :thumbsdown:"
                 elif operator != "+" and operator != "-" and log[i-1] == dieValue: msg += " :ok_hand:"
-            elif 1 < numDice <= 10:
-                for i in range(1, numDice + 1):
-                    msg += "\nRoll " + str(i) + ": " + str(log[i-1])
-                    if operator == "+" and log[i-1] - mod == 1: msg += " :thumbsdown:"
-                    elif operator == "+" and log[i-1] - mod == dieValue: msg += " :ok_hand:"
-                    elif operator == "-" and log[i-1] + mod == 1: msg += " :thumbsdown:"
-                    elif operator == "-" and log[i-1] + mod == dieValue: msg += " :ok_hand:"
-                    elif operator != "+" and operator != "-" and log[i-1] == 1: msg += " :thumbsdown:"
-                    elif operator != "+" and operator != "-" and log[i-1] == dieValue: msg += " :ok_hand:"
-            elif numDice > 10:
-                msg += "\nNumber of dice too high to print all rolls."
-            elif numDice < 1: raise ValueError("Number of dice must be greater than 0.\nThe number of dice was " + str(numDice) + ".")
-            return Response(msg, reply = True)
+        elif numDice > 10:
+            msg += "\nNumber of dice too high to print all rolls."
+        elif numDice < 1: raise ValueError("Number of dice must be greater than 0.\nThe number of dice was " + str(numDice) + ".")
+        return Response(msg, reply = True)
+
+    async def cmd_kill(self, author, person):
+        responses = [person + " get in noose\n" + person + " got cri\n" + person + " is drop\nnek is snop\nrip"]
+        return Response(random.choice(responses))
+    
+    async def cmd_roll(self, author, leftoverArgs, roll, operator = None, mod = None):
+        """
+        Usage:
+            {commandPrefix}roll [number of dice] "d" dieValue [+ or -] [modifier] [vantage]
+
+        Rolls dice.
+        Can be used with or without spaces around the operator (Ex: 2d20+3/2d20 + 3).
+        Throw in an a or d at the end to make it a advantage or disadvantage roll, respectively.
+        """
+        try:
+            if roll == "set":
+                key = operator
+                if key == None:
+                    raise ValueError("No key specified!")
+                if mod == None:
+                    raise ValueError("No value specified!")
+                value = str(mod) + ''.join(leftoverArgs)
+                try:
+                    attempt = await self.roll(author, None, key)
+                    try:
+                        if attempt.startswith("Invalid") or key == "d":
+                            raise ValueError("Key `" + key + "` is invalid.")
+                    except AttributeError:
+                        pass
+                    except ValueError as v:
+                        msg = "Invalid entry!"
+                        if v.args:
+                            msg += " Reason: ```"
+                            for arg in v.args:
+                                msg += arg
+                            msg += "```"
+                        return Response(msg)
+                except:
+                    pass
+                try:
+                    attempt = await self.roll(author, leftoverArgs, value)
+                    if "Invalid" in attempt.content:
+                        return attempt
+                except Exception as e:
+                    msg = "Unable to execute!"
+                    if e.args:
+                        msg += " Reason: ```"
+                        for arg in e.args:
+                            msg += arg
+                        msg += "```"
+                    return Response(msg)
+                try:
+                    await rollhelper.RollDict.set(author.id, key, value)
+                except LookupError as l:
+                    msg = "Lookup failed!"
+                    if l.args:
+                        msg += " Reason: ```"
+                        for arg in l.args:
+                            msg += arg
+                        msg += "```"
+                    return Response(msg)
+                return Response("Successfully set key `" + str(key) + "` to value `" + str(value) + "`.", reply=True)
+        except ValueError as v:
+            msg = "Unable to execute!"
+            if v.args:
+                msg += " Reason: ```"
+                for arg in v.args:
+                    msg += arg
+                msg += "```"
+            return Response(msg)
+        try:
+            value = await rollhelper.RollDict.get(author.id, roll)
+            print(value)
+            try:
+                return await self.roll(author, None, value, None)
+            except ValueError as v:
+                msg = "Invalid roll!"
+                if v.args:
+                    msg += " Reason: ```"
+                    for arg in v.args:
+                        msg += arg
+                    msg += "```"
+                return Response(msg)
+            except TypeError as t:
+                msg = "Invalid roll!"
+                if t.args:
+                    msg += " Reason: ```"
+                    for arg in t.args:
+                        msg += arg
+                    msg += "```"
+                return Response(msg)
+            except AttributeError as a:
+                msg = "Invalid roll!"
+                if a.args:
+                    msg += " Reason: ```"
+                    for arg in a.args:
+                        msg += arg
+                    msg += "```"
+                return Response(msg)
+        except LookupError:
+            pass
+        try:
+            return await self.roll(author, leftoverArgs, roll, operator, mod)
         except ValueError as v:
             msg = "Invalid roll!"
             if v.args:
@@ -168,6 +318,14 @@ class ATAR(discord.Client):
             if t.args:
                 msg += " Reason: ```"
                 for arg in t.args:
+                    msg += arg
+                msg += "```"
+            return Response(msg)
+        except AttributeError as a:
+            msg = "Invalid roll!"
+            if a.args:
+                msg += " Reason: ```"
+                for arg in a.args:
                     msg += arg
                 msg += "```"
             return Response(msg)
@@ -251,10 +409,49 @@ class ATAR(discord.Client):
         self.cmd_ascii.__func__.__doc__ = self.cmd_ascii.__func__.__doc__.format(asciis = doc)
 
     async def meme_template(self):
-        return Response("http://imgur.com/a/jOscg")
+        return Response("http://i.imgur.com/izuep2h.png")
+
+    async def meme_b8(self):
+        return Response("http://i.imgur.com/i2RDg1O.gifv")
 
     async def meme_triggered(self):
-        return Response("http://i.imgur.com/h0LjtCP.gif")
+        return Response(random.choice(["http://i.imgur.com/h0LjtCP.gif", "http://i.imgur.com/PijcGEU.gif", "http://i.makeagif.com/media/10-12-2015/VguXuo.gif", "http://i0.kym-cdn.com/photos/images/newsfeed/001/034/138/cd0.gif", "http://i.imgur.com/oOF8IXq.gif", "http://tinyurl.com/j778xgz", "http://tinyurl.com/j5ocud4"]))
+
+    async def meme_enabled(self):
+        return await self.meme_triggered()
+
+    async def meme_activated(self):
+        return await self.meme_triggered()
+
+    async def meme_deanworks(self):
+        return Response("http://i.imgur.com/ByoyMiF.png")
+
+    async def meme_memeworks(self):
+        return Response("http://i.imgur.com/Oezyjne.png")
+
+    async def meme_steamworks(self):
+        return Response("http://i.imgur.com/bVaGfwa.gifv")
+
+    async def meme_feels(self):
+        return Response("http://i.imgur.com/w8fIA.gif")
+
+    async def meme_vladmirnat20(self):
+        return Response("http://i.imgur.com/aMVHgnE.gifv")
+
+    async def meme_fork(self):
+        return Response("https://i.imgur.com/pZ3WfY4.png")
+
+    async def meme_hobbit(self):
+        return Response("http://i.imgur.com/xNsfVBy.jpg")
+
+    async def meme_intense(self):
+        return Response("http://i.imgur.com/WGL2dWb.gifv")
+
+    async def meme_memegirls(self):
+        return Response("http://i.imgur.com/XuZVAZa.png")
+
+    async def meme_prettygood(self):
+        return Response("http://i.imgur.com/yuKUizW.jpg")
     
     async def cmd_meme(self, meme):
         """
@@ -283,8 +480,29 @@ class ATAR(discord.Client):
         self.cmd_meme.__func__.__doc__ = self.cmd_meme.__func__.__doc__.format(memes = doc)
 
     async def cmd_cleverbot(self, query):
+        """
+        Usage:
+            {commandPrefix}cleverbot query
+
+        Sends query to cleverbot and returns the message.
+        """
         answer = self.cb.ask(query)
         return Response(answer, reply=True)
+
+    async def cmd_navyseal(self, leftoverArgs):
+        """
+        Usage:
+            {commandPrefix}stats replacement
+
+        Returns the Navy Seal copypasta with replacement.
+        """
+        MAX_MSG_LEN = 1961
+        replacement = ' '.join(leftoverArgs)
+        msg = navyseal.copypasta(replacement)
+        if len(msg) > MAX_MSG_LEN:
+            msg = msg[:MAX_MSG_LEN:]
+            return Response(msg + "```Trimmed content, result too long.```")
+        return Response(msg)
 
     async def cmd_stats(self, author, server, stat, user=None):
         """
@@ -377,11 +595,152 @@ class ATAR(discord.Client):
         """
         return Response("https://github.com/Dinokaiz2/The-Shocking-Truth")
 
+    async def cmd_trump(self, leftoverArgs):
+        trump_file = FileHelper.get_full_path("quotes/trump.txt")
+        try:
+            if leftoverArgs[0] == "add":
+                del leftoverArgs[0]
+                if len(leftoverArgs) == 0:
+                    return Reponse("```No addition specified!```")
+                addition = ' '.join(leftoverArgs)
+                with open(trump_file, "a") as trump:
+                    trump.write(addition + "\n")
+                return Response("Successfully added \"" + addition + "\" to the database.")
+        except IndexError:
+            pass
+        with open(trump_file, "r") as trump:
+            lines = trump.readlines()
+        return Response(random.choice(lines).strip(), reply=True)
+
+    async def cmd_quote(self, leftoverArgs):
+        """
+        Usage:
+            {commandPrefix}quote
+
+        Returns a random quote.
+
+        Usage:
+            {commandPrefix}quote number
+
+        Returns the quote number specified.
+
+        Usage:
+            {commandPrefix}quote add quote
+
+        Adds quote to the database of quotes.
+
+        Usage:
+            {commandPrefix}quote remove number
+
+        Removes the quote number specified.
+        """
+        quotes_file = FileHelper.get_full_path("quotes/general.txt")
+        try:
+            if leftoverArgs[0] == "add":
+                del leftoverArgs[0]
+                if len(leftoverArgs) == 0:
+                    return Reponse("```No addition specified!```")
+                addition = ' '.join(leftoverArgs)
+                with open(quotes_file, "a") as quotes:
+                    quotes.write(addition + "\n")
+                return Response("Successfully added \"" + addition + "\" to the database.")
+            elif leftoverArgs[0] == "remove":
+                del leftoverArgs[0]
+                if len(leftoverArgs) == 0:
+                    return Response("```No removal specified!```")
+                line_to_remove = leftoverArgs[0]
+                try:
+                    line_to_remove = int(line_to_remove)
+                except ValueError:
+                    raise ValueError("Could not parse as integer.")
+                if line_to_remove < 1:
+                    raise ValueError("Number too low. Quotes start at 1.")
+                with open(quotes_file, "r") as quotes:
+                    lines = quotes.readlines()
+                try:
+                    quote = lines[line_to_remove - 1]
+                    del lines[line_to_remove - 1]
+                except IndexError:
+                    raise ValueError("Number too high. Current number of quotes is " + str(len(lines)) + ".")
+                lines = "".join(lines)
+                with open(quotes_file, "w") as quotes:
+                    quotes.write(lines)
+                return Response("Successfully deleted quote \"" + str(quote.strip()) + "\".")
+            elif leftoverArgs[0]:
+                line_number = leftoverArgs[0]
+                try:
+                    line_number = int(line_number)
+                    print(line_number)
+                except ValueError:
+                    raise ValueError("Could not parse as integer.")
+                if line_number < 1:
+                    raise ValueError("Number too low. Quotes start at 1.")
+                with open(quotes_file, "r") as quotes:
+                    lines = quotes.readlines()
+                try:
+                    quote = lines[line_number - 1]
+                except IndexError:
+                    raise ValueError("Number too high. Current number of quotes is " + str(len(lines)) + ".")
+                quote = quote.strip()
+                msg = "Quote " + str(line_number) + ": " + str(quote)
+                return Response(msg, reply=True)
+        except IndexError:
+            pass
+        except ValueError as v:
+            msg = "Invalid number!"
+            if v.args:
+                msg += " Reason: ```"
+                for arg in v.args:
+                    msg += arg
+                msg += "```"
+            return Response(msg)
+        with open(quotes_file, "r") as quotes:
+            lines = quotes.readlines()
+        if len(lines) == 0:
+            return Response("```No quotes currently in the database!```")
+        quote = random.choice(lines)
+        quote_number = lines.index(quote) + 1
+        quote = quote.strip()
+        msg = "Quote " + str(quote_number) + ": " + str(quote)
+        return Response(msg, reply=True)
+
+    async def cmd_beastie(self):
+        letters = ["F", "W", "B"]
+        random.shuffle(letters)
+        msg = letters[0] + "UCKIN " + letters[1] + "EE " + letters[2] + "EASTIE"
+        return Response(msg, reply=True)
+
+    async def cmd_seriousmode(self):
+        self.seriousMode = not self.seriousMode
+        if not self.seriousMode:
+            return Response("Turned serious mode off.", reply=True)
+        else:
+            return Response("Turned serious mode on.", reply=True)
+
+    async def cleverbot_repeating(self, query, channel):
+        time.sleep(0.5)
+        answer = self.cb.ask(query)
+        await self.safeSendMessage(channel, answer)
+        await self.cleverbot_repeating(answer, channel)
+
     async def on_message(self, message):
         await self.wait_until_ready()
-
         messageContent = message.content.strip()
+
+        if message.content.startswith("!cleverbot"):
+            await self.cleverbot_repeating(message.content.replace("!cleverbot ", ""), message.channel)
+            return
+        
         if not messageContent.startswith(self.config.commandPrefix):
+            if message.author != self.user:
+                if ("wow" in message.content.lower() or "mom" in message.content.lower()) and not self.seriousMode:
+                    lst, indices = self.split(message.content)
+                    for i in indices:
+                        if lst[i][0].lower() == "w":
+                            lst[i] = self.case_sensitive_replace(lst[i], "wow", "mom")
+                        elif lst[i][0].lower() == "m":
+                            lst[i] = self.case_sensitive_replace(lst[i], "mom", "wow")
+                    await self.safeSendMessage(message.channel, ''.join(lst))
             return
 
         if message.author == self.user:
@@ -564,6 +923,61 @@ class ATAR(discord.Client):
         except discord.Forbidden:
             if self.config.debug_mode:
                 print("Could not send typing to %s, no permission" % destination)
+
+    def case_sensitive_replace(self, string, old, new):
+        """
+        replace occurrences of old with new, within string
+            replacements will match the case of the text it replaces
+        """
+        def repl(match):
+            current = match.group()
+            result = ''
+            all_upper=True
+            for i,c in enumerate(current):
+                if i >= len(new):
+                    break
+                if c.isupper():
+                    result += new[i].upper()
+                else:
+                    result += new[i].lower()
+                    all_upper=False
+            #append any remaining characters from new
+            if all_upper:
+                result += new[i+1:].upper()
+            else:
+                result += new[i+1:].lower()
+            return result
+
+        regex = re.compile(re.escape(old), re.I)
+        return regex.sub(repl, string)
+
+    def split(self, str):
+        indexes = list(self.find_all(str.lower(), "wow")) + list(self.find_all(str.lower(), "mom"))
+        indexes.sort()
+        char = 0
+        newlist = []
+        newlistindices = []
+        if indexes[0] != 0:
+            newlist.append(str[0:indexes[0]])
+        for i in range(0, len(indexes)-1):
+            newlist.append(str[indexes[i]:indexes[i]+3])
+            newlistindices.append(len(newlist)-1)
+            newlist.append(str[indexes[i]+3:indexes[i+1]])
+        newlist.append(str[indexes[-1]:indexes[-1]+3])
+        newlistindices.append(len(newlist)-1)
+        newlist.append(str[indexes[-1]+3:len(str)])
+        for i in newlist:
+            if i == "":
+                newlist.remove(i)
+        return newlist, newlistindices
+
+    def find_all(self, a_str, sub):
+        start = 0
+        while True:
+            start = a_str.find(sub, start)
+            if start == -1: return
+            yield start
+            start += len(sub) # use start += 1 to find overlapping matches
 
 
 class Response:

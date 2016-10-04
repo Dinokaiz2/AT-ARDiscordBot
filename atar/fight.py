@@ -240,6 +240,9 @@ class Stats:
                 break
         else:
             lines.insert(line_numbers[-2], "\t" + stat_type + ": " + str(value) + "\n")
+            lines = "".join(lines)
+            with open(Stats.statFileDir, "w") as statSheet:
+                statSheet.write(lines)
             return
         if relative:
             stat = int(lines[line_number].strip().split(": ", 1)[1]) + value

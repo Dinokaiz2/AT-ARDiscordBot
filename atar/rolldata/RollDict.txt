@@ -1,0 +1,82 @@
+
+
+152956092740141056 {
+	spoon: d10000
+	str: d20
+	wis: d20
+	athletics: d20+2
+	initiative: d20+4
+	dex: d20+4
+	con: d20+3
+	int: d20
+	cha: d20
+	acrobatics: d20+6
+	animalhandling: d20
+	arcana: d20
+	deception: d20
+	history: d20
+	insight: d20+2
+	intimidation: d20
+	investigation: d20
+	medicine: d20
+	nature: d20
+	performance: d20
+	persuasion: d20+2
+	religion: d20
+	sleightofhand: d20+4
+	stealth: d20+4
+	survival: d20
+	xbowatk: d20+6
+	crossbowatk: d20+6
+	atkcrossbow: d20+6
+	atkxbow: d20+6
+	attackcrossbow: d20+6
+	crossbowattack: d20+6
+	xbowattack: d20+6
+	attackxbow: d20+6
+	xbowatkss: d20+1
+	crossbowatkss: d20+1
+	atkcrossbowss: d20+1
+	atkxbowss: d20+1
+	attackcrossbowss: d20+1
+	crossbowattackss: d20+1
+	xbowattackss: d20+1
+	attackxbowss: d20+1
+	damagecrossbow: d8+4
+	damagexbow: d8+4
+	dmgcrossbow: d8+4
+	crossbowdamage: d8+4
+	crossbowdmg: d8+4
+	xbowdmg: d8+4
+	xbowdamage: d8+4
+	dmgxbow: d8+4
+	damagecrossbowss: d8+14
+	damagexbowss: d8+14
+	dmgcrossbowss: d8+14
+	crossbowdamagess: d8+14
+	crossbowdmgss: d8+14
+	xbowdmgss: d8+14
+	xbowdamagess: d8+14
+	dmgxbowss: d8+14
+	ssdamagecrossbow: d8+14
+	ssdamagexbow: d8+14
+	ssdmgcrossbow: d8+14
+	sscrossbowdamage: d8+14
+	sscrossbowdmg: d8+14
+	ssxbowdmg: d8+14
+	ssxbowdamage: d8+14
+	ssdmgxbow: d8+14
+	strsave: d20+2
+	dexsave: d20+4
+	consave: d20+5
+	intsave: d20
+	wissave: d20
+	chasave: d20
+	perception: d20
+}
+
+152406457474613248 {
+	i: 1d20+2
+	c: d4+5
+	this_will_return_1_if_Kaiz_sucks: d1
+}

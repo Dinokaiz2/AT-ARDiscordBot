@@ -34,7 +34,6 @@ insults = ["I\'m not saying I hate you, but I would unplug your life support to 
            "It looks like your face caught on fire and someone tried to put it out with a hammer.",
            "You're so ugly, the only dates you get are on a calendar.",
            "You're not funny, but your life, now that's a joke.",
-           "The last time I saw a face like yours I fed it a banana.",
            "What are you doing here? Did someone leave your cage open?",
            "I'd like to kick you in the teeth, but that would be an improvement!",
            "Why don't you check eBay and see if they have a life for sale.",
@@ -51,7 +50,19 @@ insults = ["I\'m not saying I hate you, but I would unplug your life support to 
            "Your parents hated you so much your bath toys were an iron and a toaster",
            "I love what you've done with your hair. How do you get it to come out of the nostrils like that?",
            "I heard your parents took you to a dog show and you won.",
-           "If your brain was made of chocolate, it wouldn't fill an M&M."]
+           "If your brain was made of chocolate, it wouldn't fill an M&M.",
+           "Two wrongs don't make a right, take your parents as an example.",
+           "I'm glad to see you're not letting your education get in the way of your ignorance.",
+           "What language are you speaking? Cause it sounds like bullshit.",
+           "You so ugly when who were born the doctor threw you out the window and the window threw you back.",
+           "Ordinarily people live and learn. You just live.",
+           "Calling you an idiot would be an insult to all stupid people.",
+           "I was going to give him a nasty look, but he already had one.",
+           "Support bacteria - they're the only culture some people have.",
+           "If I wanted to hear from an asshole, I'd fart.",
+           "When you were born, the doctor came out to the waiting room and said to your father, \"I'm very sorry. We did everything we could. But he pulled through.\"",
+           "You've got two brain cells: one is in a wheelchair and the other one is pushing.",
+           "Your gene pool could use a little chlorine."]
            
 def getRandomInsult():
     return random.choice(insults)
