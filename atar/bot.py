@@ -489,10 +489,13 @@ class ATAR(discord.Client):
         answer = self.cb.ask(query)
         return Response(answer, reply=True)
 
+    async def cmd_autonote(self):
+        return Response("https://github.com/Dinokaiz2/AUTONOTE/releases")
+
     async def cmd_navyseal(self, leftoverArgs):
         """
         Usage:
-            {commandPrefix}stats replacement
+            {commandPrefix}navyseal replacement
 
         Returns the Navy Seal copypasta with replacement.
         """
@@ -552,7 +555,7 @@ class ATAR(discord.Client):
                 msg += "```"
             return Response(msg)
 
-    async def cmd_fight(self, author):
+    async def cmd_fight(self, author, channel, server):
         """
         Usage:
             {commandPrefix}fight
@@ -562,8 +565,9 @@ class ATAR(discord.Client):
         if self.fight:
             return Response("```A battle is already in progress! Use {commandPrefix}attack to attack the monster!```".format(commandPrefix=self.config.commandPrefix))
         self.fight = fight.Fight(author)
-        await self.fight.start_monster_attacks()
-        return Response(self.fight.monster.generate_start_string())
+        await self.safeSendMessage(channel, self.fight.monster.generate_start_string())
+        await self.fight.start_monster_attacks(self, channel, server)
+        return
 
     async def cmd_attack(self, author):
         """
@@ -574,6 +578,9 @@ class ATAR(discord.Client):
         A fight must have already been started using {commandPrefix}fight.
         """
         try:
+            hp = await fight.Stats.get_stat(author.id, fight.Stats.HP)
+            if hp <= 0:
+                return Response("You've been killed by the monster! You cannot attack!", reply=True)
             response, alive = await self.fight.attack(author)
             if not alive:
                 self.fight = None
@@ -727,9 +734,9 @@ class ATAR(discord.Client):
         await self.wait_until_ready()
         messageContent = message.content.strip()
 
-        if message.content.startswith("!cleverbot"):
-            await self.cleverbot_repeating(message.content.replace("!cleverbot ", ""), message.channel)
-            return
+##        if message.content.startswith("!cleverbot"):
+##            await self.cleverbot_repeating(message.content.replace("!cleverbot ", ""), message.channel)
+##            return
         
         if not messageContent.startswith(self.config.commandPrefix):
             if message.author != self.user:

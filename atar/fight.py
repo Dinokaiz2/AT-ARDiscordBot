@@ -47,8 +47,8 @@ class Fight:
                 raise ValueError("Player not found!")
             add_player(player, lasthit)
 
-    async def start_monster_attacks(self):
-        await self.monster.attack_recur_start(self.players, 1)
+    async def start_monster_attacks(self, client, channel, server):
+        await self.monster.attack_recur_start(self.players, 1, client, channel, server)
 
     async def attack(self, attacker, force=False):
         if time.time() - self.get_player_lasthit(attacker, force=True) < self.PLAYER_ATTACK_COOLDOWN:
@@ -75,30 +75,52 @@ class Monster:
         self.challenge_rating = challenge_rating
         self.alive = True
 
-    async def attack(self, id):
-        print("wow so attack very hurt ouchies")
+    async def attack(self, id, players, client, channel, server):
+        for member in server.members:
+            if id == member.id:
+                mention = member.mention
+                break
+        else:
+            raise LookupError("Tried to attack nonexistant user " + str(id) + ".")
         if random.random() > self.ACC:
+            await client.safeSendMessage(channel, self.generate_miss_string().format(player_name=mention))
             return False, 0, self.generate_miss_string()
         dmg = -self.ATK
         rng = random.randint(int(-dmg * 0.2), int(dmg * 0.2))
         dmg += rng
         await Stats.set_stat(id, Stats.HP, dmg, True)
-        ## DKFH:LDKFHD PUT THE MESSAGE SEND HERE PASS CLIENT TO FIGHT CLASS WHICH PASSES TO THIS CLASS
+        if await Stats.get_stat(id, Stats.HP) <= 0:
+            for playerid, lasthit in players:
+                if playerid == id:
+                    del self.players[self.players.index([playerid, lasthit])]
+        await client.safeSendMessage(channel, self.generate_attack_string().format(player_name=mention, damage=-dmg))
         return True, dmg, self.generate_attack_string()
 
-    async def attack_recur_start(self, players, initial_sec_mult):
+    async def attack_recur_start(self, players, initial_sec_mult, client, channel, server):
+        if self.HP <= 0:
+            return
         rng = random.randint(int(-self.SPD * 0.5), int(self.SPD * 0.5))
         await asyncio.sleep((self.SPD + rng) * 0.5)
-        await self.attack_recur(players)
+        await self.attack_recur(players, client, channel, server)
 
-    async def attack_recur(self, players):
-        print("wow attack so recur")
-        print(players)
-        player = random.choice(players)[1]
-        await self.attack(player)
+    async def attack_recur(self, players, client, channel, server):
+        if self.HP <= 0:
+            return
+        try:
+            while True:
+                player, lasthit = random.choice(players)
+                if await Stats.get_stat(player, Stats.HP) <= 0:
+                    del players[players.index([player, lasthit])]
+                else:
+                    break
+        except IndexError:
+            await client.safeSendMessage(channel, "@here: The monster awaits an opponent.")
+        else:
+            print(player)
+            await self.attack(player, players, client, channel, server)
         rng = random.randint(int(-self.SPD * 0.5), int(self.SPD * 0.5))
         await asyncio.sleep(self.SPD + rng)
-        await self.attack_recur(players)
+        await self.attack_recur(players, client, channel, server)
         
     async def take_damage(self, damage, ignore_def=False):
         if not ignore_def:
@@ -158,9 +180,17 @@ class Monster:
         """
         return
 
+    @abc.abstractmethod
+    def generate_kill_string(self):
+        """
+        Generates a string for when the monster kills a player.
+        All strings must contain a player name.
+        """
+        return
+
 class Zombie(Monster):
     def __init__(self):
-        super().__init__(10, 3, 1, 0.7, 1, 10)
+        super().__init__(10, 3, 1, 0.7, 30, 10)
 
     def generate_start_string(self):
         return random.choice([("A zombie appeared!")])
@@ -184,6 +214,11 @@ class Zombie(Monster):
 
     def generate_death_string(self):
         return random.choice([("The zombie falls to the ground and dies.")])
+
+    def generate_kill_string(self):
+        return random.choice([("The zombie bites {player_name}!\n"
+                               "{player_name} falls to the ground, quivering.\n"
+                               "{player_name} has died! They're out of the fight!")])
 
     
 
